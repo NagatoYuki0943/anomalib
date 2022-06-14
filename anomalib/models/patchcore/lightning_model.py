@@ -113,6 +113,8 @@ class Patchcore(AnomalyModule):
             Dict[str, Any]: Image filenames, test images, GT and predicted label/masks
         """
 
+        # 根据topk的最小值绘制像素级别热力图, 得到图片级别分数
+        # [1, 1, 512, 512]  [1]
         anomaly_maps, anomaly_score = self.model(batch["image"])
         batch["anomaly_maps"] = anomaly_maps
         batch["pred_scores"] = anomaly_score.unsqueeze(0)

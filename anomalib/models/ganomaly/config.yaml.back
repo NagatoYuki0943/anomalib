@@ -1,14 +1,9 @@
 dataset:
-  name: some
-  format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal      # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal  # name of the folder containing abnormal images.
-  normal_test_dir: null     # name of the folder containing normal test images.
-  task: classification      # classification or segmentation
-  mask: null                # optional
-  extensions: null
-  split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
+  name: mvtec #options: [mvtec, btech, folder]
+  format: mvtec
+  path: ./datasets/MVTec
+  category: bottle
+  task: classification
   image_size: 256
   train_batch_size: 32
   test_batch_size: 32
@@ -19,7 +14,7 @@ dataset:
     val: null
   create_validation_set: false
   tiling:
-    apply: false
+    apply: true
     tile_size: 64
     stride: null
     remove_border_count: 0
@@ -27,21 +22,22 @@ dataset:
     random_tile_count: 16
 
 model:
-  name: reverse_distillation
-  lr: 0.005
-  backbone: wide_resnet50_2
-  layers:
-    - layer1
-    - layer2
-    - layer3
+  name: ganomaly
+  latent_vec_size: 100
+  n_features: 64
+  extra_layers: 0
+  add_final_conv: true
   early_stopping:
     patience: 3
-    metric: pixel_AUROC
+    metric: image_AUROC
     mode: max
+  lr: 0.0002
   beta1: 0.5
-  beta2: 0.99
-  normalization_method: min_max # options: [null, min_max, cdf]
-  anomaly_map_mode: multiply
+  beta2: 0.999
+  wadv: 1
+  wcon: 50
+  wenc: 1
+  normalization_method: none
 
 metrics:
   image:
@@ -52,7 +48,6 @@ metrics:
     - AUROC
   threshold:
     image_default: 0
-    pixel_default: 0
     adaptive: true
 
 project:
@@ -61,7 +56,7 @@ project:
 
 logging:
   log_images_to: ["local"] # options: [wandb, tensorboard, local]. Make sure you also set logger with using wandb or tensorboard.
-  logger: ["tensorboard"] # options: [tensorboard, wandb, csv] or combinations.
+  logger: [] # options: [tensorboard, wandb, csv] or combinations.
   log_graph: false # Logs the model graph to respective logger.
 
 optimization:
@@ -95,7 +90,7 @@ trainer:
   limit_val_batches: 1.0
   log_every_n_steps: 50
   log_gpu_memory: null
-  max_epochs: 200
+  max_epochs: 100
   max_steps: null
   min_epochs: null
   min_steps: null

@@ -55,7 +55,8 @@ class Visualizer:
     def generate(self):
         """Generate the image."""
         num_cols = len(self.images)
-        figure_size = (num_cols * 3, 3)
+        # figure_size = (num_cols * 3, 3)
+        figure_size = (num_cols * 15, 15)   # 调整图片大小
         self.figure, self.axis = plt.subplots(1, num_cols, figsize=figure_size)
         self.figure.subplots_adjust(right=0.9)
 

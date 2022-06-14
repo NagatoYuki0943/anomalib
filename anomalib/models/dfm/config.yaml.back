@@ -1,47 +1,27 @@
 dataset:
-  name: some
-  format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal      # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal  # name of the folder containing abnormal images.
-  normal_test_dir: null     # name of the folder containing normal test images.
-  task: classification      # classification or segmentation
-  mask: null                # optional
-  extensions: null
-  split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
+  name: mvtec #options: [mvtec, btech, folder]
+  format: mvtec
+  path: ./datasets/MVTec
+  category: bottle
+  task: classification
   image_size: 256
   train_batch_size: 32
   test_batch_size: 32
-  inference_batch_size: 32
   num_workers: 8
   transform_config:
     train: null
     val: null
   create_validation_set: false
-  tiling:
-    apply: false
-    tile_size: 64
-    stride: null
-    remove_border_count: 0
-    use_random_tiling: False
-    random_tile_count: 16
 
 model:
-  name: reverse_distillation
-  lr: 0.005
-  backbone: wide_resnet50_2
-  layers:
-    - layer1
-    - layer2
-    - layer3
-  early_stopping:
-    patience: 3
-    metric: pixel_AUROC
-    mode: max
-  beta1: 0.5
-  beta2: 0.99
+  name: dfm
+  backbone: resnet18
+  layer: layer3
+  pooling_kernel_size: 4
+  pca_level: 0.97
+  score_type: fre # nll: for Gaussian modeling, fre: pca feature reconstruction error
+  project_path: ./results
   normalization_method: min_max # options: [null, min_max, cdf]
-  anomaly_map_mode: multiply
 
 metrics:
   image:
@@ -52,7 +32,6 @@ metrics:
     - AUROC
   threshold:
     image_default: 0
-    pixel_default: 0
     adaptive: true
 
 project:
@@ -61,12 +40,8 @@ project:
 
 logging:
   log_images_to: ["local"] # options: [wandb, tensorboard, local]. Make sure you also set logger with using wandb or tensorboard.
-  logger: ["tensorboard"] # options: [tensorboard, wandb, csv] or combinations.
+  logger: [] # options: [tensorboard, wandb, csv] or combinations.
   log_graph: false # Logs the model graph to respective logger.
-
-optimization:
-  openvino:
-    apply: false
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:
@@ -77,7 +52,7 @@ trainer:
   auto_scale_batch_size: false
   auto_select_gpus: false
   benchmark: false
-  check_val_every_n_epoch: 2
+  check_val_every_n_epoch: 1 # Don't validate before extracting features.
   default_root_dir: null
   detect_anomaly: false
   deterministic: false
@@ -95,8 +70,9 @@ trainer:
   limit_val_batches: 1.0
   log_every_n_steps: 50
   log_gpu_memory: null
-  max_epochs: 200
-  max_steps: null
+  max_epochs: 1
+  max_steps: -1
+  max_time: null
   min_epochs: null
   min_steps: null
   move_metrics_to_cpu: false
@@ -114,4 +90,4 @@ trainer:
   sync_batchnorm: false
   tpu_cores: null
   track_grad_norm: -1
-  val_check_interval: 1.0
+  val_check_interval: 1.0 # Don't validate before extracting features.

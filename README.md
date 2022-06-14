@@ -67,6 +67,21 @@ cd anomalib
 pip install -e .
 ```
 
+## Visualizer
+
+`./anomalib/post_processing.py` 调整保存图片的大小
+
+```python
+        # figure_size = (num_cols * 3, 3)
+        figure_size = (num_cols * 15, 15)   # 调整图片大小
+```
+
+`./anomalib/utils/callbacks/visualizer_callback.py` 调用的是上面的`post_processing.py`中的`Visualizer`
+
+`VisualizerCallback`是`callbacks`，会放进`Trainer`中运行。
+
+
+
 ## Training
 
 By default [`python tools/train.py`](https://gitlab-icv.inn.intel.com/algo_rnd_team/anomaly/-/blob/development/train.py)
@@ -96,8 +111,21 @@ in `v0.2.9`.
 
 Alternatively, a model name could also be provided as an argument, where the scripts automatically finds the corresponding config file.
 
+>  max_epochs=1
+
 ```bash
+python tools/train.py --model patchcore
 python tools/train.py --model padim
+python tools/train.py --model dfm
+python tools/train.py --model dfkde
+```
+
+>  max_epochs>1
+
+```shell
+python tools/train.py --model cflow
+python tools/train.py --model ganomaly
+python tools/train.py --model stfpm
 ```
 
 where the currently available models are:
@@ -141,11 +169,55 @@ dataset:
     use_random_tiling: False
     random_tile_count: 16
 ```
+> example
+
+```yaml
+dataset:
+  name: <name-of-the-dataset>
+  format: folder
+  path: ./datasets/some
+  normal_dir: 0.normal # name of the folder containing normal images.
+  abnormal_dir: 1.abnormal # name of the folder containing abnormal images.
+  normal_test_dir: null # name of the folder containing normal test images.
+  task: segmentation # classification or segmentation
+  mask: null # optional
+  extensions: null
+  split_ratio: 0.2  # ratio of the normal images that will be used to create a test split
+  image_size: 512
+  train_batch_size: 1
+  test_batch_size: 1
+  num_workers: 1
+  transform_config:
+    train: null
+    val: null
+  create_validation_set: true
+  tiling:
+    apply: false
+    tile_size: null
+    stride: null
+    remove_border_count: 0
+    use_random_tiling: False
+    random_tile_count: 16
+```
+
+> 文件夹实例
+
+```python
+├── datasets
+│   └── some
+│       ├── 0.normal
+│       │   normal images
+│       └── 1.abnormal
+│           abnormalimages
+```
+
 ## Inference
 
 Anomalib contains several tools that can be used to perform inference with a trained model. The script in [`tools/inference`](tools/inference.py) contains an example of how the inference tools can be used to generate a prediction for an input image.
 
 If the specified weight path points to a PyTorch Lightning checkpoint file (`.ckpt`), inference will run in PyTorch. If the path points to an ONNX graph (`.onnx`) or OpenVINO IR (`.bin` or `.xml`), inference will run in OpenVINO.
+
+**推理速度与保存图片的像素有关**
 
 The following command can be used to run inference from the command line:
 
@@ -154,6 +226,7 @@ python tools/inference.py \
     --config <path/to/model/config.yaml> \
     --weight_path <path/to/weight/file> \
     --image_path <path/to/image>
+    --save_path <path/to/saveimage>
 ```
 
 As a quick example:
@@ -162,8 +235,139 @@ As a quick example:
 python tools/inference.py \
     --config anomalib/models/padim/config.yaml \
     --weight_path results/padim/mvtec/bottle/weights/model.ckpt \
-    --image_path datasets/MVTec/bottle/test/broken_large/000.png
+    --image_path datasets/MVTec/bottle/test/broken_large/000.png \
+    --save_path output
 ```
+
+> character-small
+
+```shell
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-small/patchcore-224-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-small/patchcore-224-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-small/patchcore-384-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-small/patchcore-384-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-small/patchcore-512-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-small/patchcore-512-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+```
+
+> character-big
+
+```shell
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+```
+
+```shell
+python tools/inference.py `
+    --config anomalib/models/patchcore/config.yaml `
+    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt `
+    --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
+    --save_path output
+
+python tools/inference.py `
+    --config anomalib/models/patchcore/config.yaml `
+    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt `
+    --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
+    --save_path output
+
+python tools/inference.py `
+    --config anomalib/models/patchcore/config.yaml `
+    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt `
+    --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
+    --save_path output
+```
+
+
+
+> new
+>
+> `datasets/some/0.normal-modify`
+
+```shell
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal-modify/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal-modify/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/config.yaml \
+    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal-modify/ \
+    --save_path output
+```
+
+
+
+
 
 If you want to run OpenVINO model, ensure that `openvino` `apply` is set to `True` in the respective model `config.yaml`.
 
@@ -189,6 +393,19 @@ python tools/inference.py \
 
 > Ensure that you provide path to `meta_data.json` if you want the normalization to be applied correctly.
 
+## Export
+
+```shell
+python tools/export.py `
+    --config anomalib/models/patchcore/config.yaml `
+    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt `
+    --image_size 512
+```
+
+
+
+
+
 ## Hyperparameter Optimization
 
 To run hyperparameter optimization, use the following command:
@@ -209,6 +426,13 @@ To gather benchmarking data such as throughput across categories, use the follow
 python tools/benchmarking/benchmark.py \
     --config <relative/absolute path>/<paramfile>.yaml
 ```
+
+```shell
+python tools/benchmarking/benchmark.py \
+    --config benchmark.yaml
+```
+
+
 
 Refer to the [Benchmarking Documentation](https://openvinotoolkit.github.io/anomalib/guides/benchmarking.html) for more details.
 
@@ -281,6 +505,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License 
 | GANomaly      |                    |   0.834   |   0.864   |   0.844   |   0.852   |   0.836   |   0.863   |   0.863   |   0.760   |   0.905   |   0.777   |   0.894   |   0.916   |   0.853   |   0.833    |   0.571    |   0.881   |
 
 ## Reference
+
 If you use this library and love it, use this to cite it 🤗
 ```
 @misc{anomalib,
