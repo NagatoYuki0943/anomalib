@@ -26,7 +26,9 @@ from torch import Tensor
 
 from anomalib.models.components import AnomalyModule
 
-
+#-------------------------------------#
+#   在模型中读取保存的metadata
+#-------------------------------------#
 def get_model_metadata(model: AnomalyModule) -> Dict[str, Tensor]:
     """Get meta data related to normalization from model.
 
@@ -38,14 +40,14 @@ def get_model_metadata(model: AnomalyModule) -> Dict[str, Tensor]:
     """
     meta_data = {}
     cached_meta_data = {
-        "image_threshold": model.image_threshold.cpu().value,
-        "pixel_threshold": model.pixel_threshold.cpu().value,
+        "image_threshold": model.image_threshold.cpu().value,           # 0.9531
+        "pixel_threshold": model.pixel_threshold.cpu().value,           # 0.9531
         "pixel_mean": model.training_distribution.pixel_mean.cpu(),
         "image_mean": model.training_distribution.image_mean.cpu(),
         "pixel_std": model.training_distribution.pixel_std.cpu(),
         "image_std": model.training_distribution.image_std.cpu(),
-        "min": model.min_max.min.cpu(),
-        "max": model.min_max.max.cpu(),
+        "min": model.min_max.min.cpu(),                                 # 0.0008
+        "max": model.min_max.max.cpu(),                                 # 1.6897
     }
     # Remove undefined values by copying in a new dict
     for key, val in cached_meta_data.items():

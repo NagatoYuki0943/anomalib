@@ -66,7 +66,7 @@ class Inferencer(ABC):
         self,
         image: Union[str, np.ndarray, Path],
         superimpose: bool = True,
-        meta_data: Optional[dict] = None,
+        meta_data: Optional[dict] = None,   # meta_data 用来存储信息，在模型中读取了image_threshold，pixel_threshold等
         overlay_mask: bool = False,
     ) -> Tuple[np.ndarray, float]:
         """Perform a prediction for a given input image.
@@ -86,6 +86,10 @@ class Inferencer(ABC):
         Returns:
             np.ndarray: Output predictions to be visualized.
         """
+        #--------------------------------#
+        #   meta_data 用来存储信息，在模型中读取了image_threshold，pixel_threshold等
+        #   这里再添加图片信息
+        #--------------------------------#
         if meta_data is None:
             if hasattr(self, "meta_data"):
                 meta_data = getattr(self, "meta_data")
@@ -95,19 +99,34 @@ class Inferencer(ABC):
             image_arr: np.ndarray = read_image(image)
         else:  # image is already a numpy array. Kept for mypy compatibility.
             image_arr = image
-        meta_data["image_shape"] = image_arr.shape[:2]
+        meta_data["image_shape"] = image_arr.shape[:2]  # [2711,5351] 添加原图信息
 
+        #--------------------------------#
+        #   预处理
+        #   调用anomalib/pre_precessing.py -> PreProcessor
+        #--------------------------------#
         processed_image = self.pre_process(image_arr)
         predictions = self.forward(processed_image)
-        anomaly_map, pred_scores = self.post_process(predictions, meta_data=meta_data)
+
+        #--------------------------------#
+        #   后处理
+        #   将forward获得的热力图(1,1,512,512)和score(1.0392)标准化，使用了metadata中的min和max
+		#   将图片还原到原图尺寸
+        #   meta_data: image_threshold,pixel_threshold,min,max,image_shape
+        #--------------------------------#
+        anomaly_map, pred_scores = self.post_process(predictions, meta_data=meta_data) # anomaly_map: [2711, 5351]  pred_scores: 0.55
 
         # Overlay segmentation mask using raw predictions
         if overlay_mask and meta_data is not None:
             image_arr = self._superimpose_segmentation_mask(meta_data, anomaly_map, image_arr)
 
-        if superimpose is True:
+        #--------------------------------#
+        #   将单通道热力图转换为三通道并和原图混合
+        #--------------------------------#
+        if superimpose is True:                 # 热力图和原图，大小相同 [2711, 5351]+[2711, 5351] ->　[2711, 5351, 3]
             anomaly_map = superimpose_anomaly_map(anomaly_map, image_arr)
 
+        # 返回混合后的图像和得分
         return anomaly_map, pred_scores
 
     def _superimpose_segmentation_mask(self, meta_data: dict, anomaly_map: np.ndarray, image: np.ndarray):
@@ -141,6 +160,9 @@ class Inferencer(ABC):
         """
         return self.predict(image)
 
+    #-----------------------------#
+    # 标准化热力图和得分
+    #-----------------------------#
     def _normalize(
         self,
         anomaly_maps: Union[Tensor, np.ndarray],
@@ -150,8 +172,8 @@ class Inferencer(ABC):
         """Applies normalization and resizes the image.
 
         Args:
-            anomaly_maps (Union[Tensor, np.ndarray]): Predicted raw anomaly map.
-            pred_scores (Union[Tensor, np.float32]): Predicted anomaly score
+            anomaly_maps (Union[Tensor, np.ndarray]): Predicted raw anomaly map.            torch.Size([512, 512])
+            pred_scores (Union[Tensor, np.float32]): Predicted anomaly score                tensor(1.0392)
             meta_data (Dict): Meta data. Post-processing step sometimes requires
                 additional meta data such as image shape. This variable comprises such info.
 
@@ -164,9 +186,11 @@ class Inferencer(ABC):
 
         # min max normalization
         if "min" in meta_data and "max" in meta_data:
+            # 热力图标准化
             anomaly_maps = normalize_min_max(
                 anomaly_maps, meta_data["pixel_threshold"], meta_data["min"], meta_data["max"]
             )
+            # tensor(1.0392) -> tensor(0.5510)
             pred_scores = normalize_min_max(
                 pred_scores, meta_data["image_threshold"], meta_data["min"], meta_data["max"]
             )

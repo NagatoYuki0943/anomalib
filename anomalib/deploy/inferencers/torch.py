@@ -35,9 +35,9 @@ class TorchInferencer(Inferencer):
     """PyTorch implementation for the inference.
 
     Args:
-        config (DictConfig): Configurable parameters that are used
+        config (DictConfig): Configurable parameters that are used                                          配置文件
             during the training stage.
-        model_source (Union[str, Path, AnomalyModule]): Path to the model ckpt file or the Anomaly model.
+        model_source (Union[str, Path, AnomalyModule]): Path to the model ckpt file or the Anomaly model.   保存的模型路径
         meta_data_path (Union[str, Path], optional): Path to metadata file. If none, it tries to load the params
                 from the model state_dict. Defaults to None.
     """
@@ -56,6 +56,9 @@ class TorchInferencer(Inferencer):
 
         self.meta_data = self._load_meta_data(meta_data_path)
 
+    #----------------------------------------------------#
+    #   从file或模型中读取metadata，如image_threshold，pixel_threshold，min，max
+    #----------------------------------------------------#
     def _load_meta_data(self, path: Optional[Union[str, Path]] = None) -> Union[Dict, DictConfig]:
         """Load metadata from file or from model state dict.
 
@@ -73,8 +76,12 @@ class TorchInferencer(Inferencer):
             meta_data = super()._load_meta_data(path)
         return meta_data
 
+    #----------------------------------------------------#
+    #   读取pytorch模型
+    #----------------------------------------------------#
     def load_model(self, path: Union[str, Path]) -> AnomalyModule:
-        """Load the PyTorch model.
+        """ 读取pytorch模型
+            Load the PyTorch model.
 
         Args:
             path (Union[str, Path]): Path to model ckpt file.
@@ -87,6 +94,10 @@ class TorchInferencer(Inferencer):
         model.eval()
         return model
 
+    #----------------------------------------------------#
+    #   预处理，在base.py的Inferencer.predict()中使用了
+    #   主要是缩放图片，标准化，ToTensor
+    #----------------------------------------------------#
     def pre_process(self, image: np.ndarray) -> Tensor:
         """Pre process the input image by applying transformations.
 
@@ -97,15 +108,18 @@ class TorchInferencer(Inferencer):
             Tensor: pre-processed image.
         """
         config = self.config.transform if "transform" in self.config.keys() else None
-        image_size = tuple(self.config.dataset.image_size)
-        pre_processor = PreProcessor(config, image_size)
-        processed_image = pre_processor(image=image)["image"]
+        image_size = tuple(self.config.dataset.image_size)    # 512 512
+        pre_processor = PreProcessor(config, image_size)      # 图片预处理程序
+        processed_image = pre_processor(image=image)["image"] # 图片预处理
 
         if len(processed_image) == 3:
             processed_image = processed_image.unsqueeze(0)
 
         return processed_image
 
+    #----------------------------------------------------#
+    #   forward.py的Inferencer.predict()中使用了
+    #----------------------------------------------------#
     def forward(self, image: Tensor) -> Tensor:
         """Forward-Pass input tensor to the model.
 
@@ -117,6 +131,11 @@ class TorchInferencer(Inferencer):
         """
         return self.model(image)
 
+    #----------------------------------------------------#
+    #   后处理，在base.py的Inferencer.predict()中使用了
+    #   将forward获得的热力图(1,1,512,512)和score(1.0392)标准化，使用了metadata中的min和max
+    #   将图片还原到原图尺寸
+    #----------------------------------------------------#
     def post_process(
         self, predictions: Tensor, meta_data: Optional[Union[Dict, DictConfig]] = None
     ) -> Tuple[np.ndarray, float]:
@@ -143,22 +162,29 @@ class TorchInferencer(Inferencer):
             #   are properly assigned. Without this check, the code
             #   throws an error regarding type mismatch torch vs np.
             if isinstance(predictions[1], (Tensor)):
-                anomaly_map, pred_score = predictions
-                pred_score = pred_score.detach()
+                anomaly_map, pred_score = predictions   # torch.Size([1, 1, 512, 512])
+                pred_score = pred_score.detach()        # tensor(1.0392)
             else:
                 anomaly_map, pred_score = predictions
                 pred_score = pred_score.detach().numpy()
 
-        anomaly_map = anomaly_map.squeeze()
+        anomaly_map = anomaly_map.squeeze()             # torch.Size([1, 1, 512, 512]) -> torch.Size([512, 512])
 
+        #------------------------------#
+        #   标准化
+        #------------------------------#
         anomaly_map, pred_score = self._normalize(anomaly_map, pred_score, meta_data)
 
         if isinstance(anomaly_map, Tensor):
             anomaly_map = anomaly_map.detach().cpu().numpy()
 
+        #------------------------------#
+        #   所放到原图尺寸
+        #------------------------------#
         if "image_shape" in meta_data and anomaly_map.shape != meta_data["image_shape"]:
             image_height = meta_data["image_shape"][0]
             image_width = meta_data["image_shape"][1]
             anomaly_map = cv2.resize(anomaly_map, (image_width, image_height))
 
+        # 返回混合后的图像和得分给inference.py
         return anomaly_map, float(pred_score)

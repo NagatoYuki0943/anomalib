@@ -78,7 +78,7 @@ class PreProcessor:
     def __init__(
         self,
         config: Optional[Union[str, A.Compose]] = None,
-        image_size: Optional[Union[int, Tuple]] = None,
+        image_size: Optional[Union[int, Tuple]] = None, # [512, 512]
         to_tensor: bool = True,
     ) -> None:
         self.config = config
@@ -104,7 +104,7 @@ class PreProcessor:
         transforms: A.Compose
 
         if self.config is None and self.image_size is not None:
-            height, width = self._get_height_and_width()
+            height, width = self._get_height_and_width()    # 512 512
             transforms = A.Compose(
                 [
                     A.Resize(height=height, width=width, always_apply=True),

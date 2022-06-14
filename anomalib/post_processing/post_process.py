@@ -85,22 +85,23 @@ def add_anomalous_label(image: np.ndarray, confidence: Optional[float] = None):
 
 
 def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) -> np.ndarray:
-    """Compute anomaly color heatmap.
+    """ 单通道热力图转换为rgb
+        Compute anomaly color heatmap.
 
     Args:
-        anomaly_map (np.ndarray): Final anomaly map computed by the distance metric.
+        anomaly_map (np.ndarray): Final anomaly map computed by the distance metric.        [2711, 5351]
         normalize (bool, optional): Bool to normalize the anomaly map prior to applying
             the color map. Defaults to True.
 
     Returns:
-        np.ndarray: [description]
+        np.ndarray: [description]                                                           [2711, 5351, 3]
     """
     if normalize:
         anomaly_map = (anomaly_map - anomaly_map.min()) / np.ptp(anomaly_map)
-    anomaly_map = anomaly_map * 255
-    anomaly_map = anomaly_map.astype(np.uint8)
+    anomaly_map = anomaly_map * 255 # 0~1 -> 0~255
+    anomaly_map = anomaly_map.astype(np.uint8)  # 变为整数
 
-    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)
+    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)  # [2711, 5351] -> [2711, 5351, 3]
     anomaly_map = cv2.cvtColor(anomaly_map, cv2.COLOR_BGR2RGB)
     return anomaly_map
 
@@ -108,11 +109,12 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
 def superimpose_anomaly_map(
     anomaly_map: np.ndarray, image: np.ndarray, alpha: float = 0.4, gamma: int = 0, normalize: bool = False
 ) -> np.ndarray:
-    """Superimpose anomaly map on top of in the input image.
+    """将热力图和原图叠加
+        Superimpose anomaly map on top of in the input image.
 
     Args:
-        anomaly_map (np.ndarray): Anomaly map
-        image (np.ndarray): Input image
+        anomaly_map (np.ndarray): Anomaly map       热力图  [2711, 5351]
+        image (np.ndarray): Input image             原图    [2711, 5351]
         alpha (float, optional): Weight to overlay anomaly map
             on the input image. Defaults to 0.4.
         gamma (int, optional): Value to add to the blended image
@@ -127,7 +129,9 @@ def superimpose_anomaly_map(
         np.ndarray: Image with anomaly map superimposed on top of it.
     """
 
+    # 单通道热力图转换为rgb [2711, 5351] -> [2711, 5351, 3]
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
+    # 叠加图片
     superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)
     return superimposed_map
 

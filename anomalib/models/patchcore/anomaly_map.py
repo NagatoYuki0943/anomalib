@@ -53,14 +53,15 @@ class AnomalyMapGenerator:
         anomaly_map = patch_scores[:, 0].reshape((batch_size, 1, width, height))                    # [64*64, 9] -> [64*64, 1] -> [1, 1, 64, 64]
         anomaly_map = F.interpolate(anomaly_map, size=(self.input_size[0], self.input_size[1]))     # [1, 1, 512, 512]
 
-        kernel_size = 2 * int(4.0 * self.sigma + 0.5) + 1
+        kernel_size = 2 * int(4.0 * self.sigma + 0.5) + 1   # kernel_size=33
         anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(self.sigma, self.sigma))
         # print('anomaly_map', anomaly_map.size())                                                  # [1, 1, 512, 512]
         return anomaly_map
 
     @staticmethod
     def compute_anomaly_score(patch_scores: torch.Tensor) -> torch.Tensor:
-        """Compute Image-Level Anomaly Score.
+        """计算图片级别分数
+            Compute Image-Level Anomaly Score.
 
         Args:
             patch_scores (torch.Tensor): Patch-level anomaly scores
@@ -74,7 +75,7 @@ class AnomalyMapGenerator:
         max_scores = torch.argmax(patch_scores[:, 0])               # tensor(1051)  找最小值中的最大值的下标
 
         # 根据上面的最大值找到这一行（点）的全部数据
-        confidence = torch.index_select(patch_scores, 0, max_scores)# tensor([[1.1790, 1.3289, 1.3604, 1.4017, 1.4162, 1.4228, 1.4311, 1.4492, 1.4502]])
+        confidence = torch.index_select(patch_scores, 0, max_scores)# [9] tensor([[1.1790, 1.3289, 1.3604, 1.4017, 1.4162, 1.4228, 1.4311, 1.4492, 1.4502]])
         # 1 - softmax
         weights = 1 - (torch.max(torch.exp(confidence)) / torch.sum(torch.exp(confidence)))     # 0.8814
         # print('score', torch.max(patch_scores[:, 0]))             # tensor(1.1790)

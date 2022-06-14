@@ -48,10 +48,17 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         self.input_size = input_size        # [512, 512]
         self.num_neighbors = num_neighbors
 
+        # 模型返回layer2和layer3的输出
         self.feature_extractor = FeatureExtractor(backbone=self.backbone(pretrained=True), layers=self.layers)  # ['layer2', 'layer3']
         self.feature_pooler = torch.nn.AvgPool2d(3, 1, 1)
         self.anomaly_map_generator = AnomalyMapGenerator(input_size=input_size)
 
+        #-----------------------------------------------#
+        # register_buffer
+        # 该方法的作用是定义一组参数，该组参数的特别之处在于：
+        # 模型训练时不会更新（即调用 optimizer.step() 后该组参数不会变化，只可人为地改变它们的值），
+        # 但是保存模型时，该组参数又作为模型参数不可或缺的一部分被保存。
+        #-----------------------------------------------#
         self.register_buffer("memory_bank", torch.Tensor())
         self.memory_bank: torch.Tensor
 
@@ -73,20 +80,32 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         if self.tiler:
             input_tensor = self.tiler.tile(input_tensor)
 
+        #----------------------------#
+        #   得到backhone的多层输出
+        #----------------------------#
         with torch.no_grad():
             features = self.feature_extractor(input_tensor)
 
-        # 得到backhone的多层输出平拼接
+        #----------------------------#
+        #   对多层输出进行3x3平均池化增加感受野
+        #   拼接多层输出
+        #----------------------------#
         features = {layer: self.feature_pooler(feature) for layer, feature in features.items()}
         embedding = self.generate_embedding(features)   # [1, 384, 64, 64]
 
         if self.tiler:
             embedding = self.tiler.untile(embedding)
 
+        #----------------------------#
+        #   [1, 384, 64, 64] -> [64*64, 384]
+        #----------------------------#
         feature_map_shape = embedding.shape[-2:]        # [64, 64]
         # print('feature_map_shape:', feature_map_shape)
-        embedding = self.reshape_embedding(embedding)   # [64*64, 384]
+        embedding = self.reshape_embedding(embedding)   # [64*64, 384]      # 代表将图片分为4096个点，每个点都进行错误预测
 
+        #--------------------------------------------#
+        #   训练直接返回，验证则绘制热力图并计算得分
+        #--------------------------------------------#
         if self.training:
             output = embedding
         else:
@@ -144,16 +163,19 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         return embedding
 
     def subsample_embedding(self, embedding: torch.Tensor, sampling_ratio: float) -> None:
-        """Subsample embedding based on coreset sampling and store to memory.
+        """训练过程中会将所有的类似[64*64, 384]数据存储起来，这里将它下采样到 10%放到memeory_bank
+            会在验证之前调用，训练一轮后会调用这个函数
+            Subsample embedding based on coreset sampling and store to memory.
 
         Args:
             embedding (np.ndarray): Embedding tensor from the CNN
             sampling_ratio (float): Coreset sampling ratio
         """
 
-        # Coreset Subsampling
+        # Coreset Subsampling   torch.Size([131072, 384])           0.1
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
-        coreset = sampler.sample_coreset()
+        coreset = sampler.sample_coreset()  # torch.Size([13107, 384])  下采样到0.1倍
+        # 将下采样1/10的数据存储起来，放到menory_bank中
         self.memory_bank = coreset
 
     def nearest_neighbors(self, embedding: Tensor, n_neighbors: int = 9) -> Tensor:
@@ -166,7 +188,8 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         Returns:
             Tensor: Patch scores.
         """
-        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度
+        # 代表将图片分为4096个点，每个点都进行错误预测
+        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
         print('distances:', distances.size())                                       # [4096, 13107] 代表4096个点和默认的13107个点都计算了距离，每一行代表1个点到13107个点的距离
         patch_scores, _ = distances.topk(k=n_neighbors, largest=False, dim=1)
