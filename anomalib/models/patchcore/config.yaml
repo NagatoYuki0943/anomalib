@@ -1,15 +1,10 @@
 dataset:
-  name: some
-  format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal      # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal  # name of the folder containing abnormal images.
-  normal_test_dir: null     # name of the folder containing normal test images.
-  task: classification      # classification or segmentation
-  mask: null                # optional
-  extensions: null
-  split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
-  image_size: 512
+  name: mvtec #options: [mvtec, btech, folder]
+  format: mvtec
+  path: ./datasets/MVTec
+  task: segmentation
+  category: bottle
+  image_size: 224
   train_batch_size: 32
   test_batch_size: 1
   num_workers: 8
@@ -27,12 +22,12 @@ dataset:
 
 model:
   name: patchcore
-  backbone: resnet18
+  backbone: wide_resnet50_2
   layers:
     - layer2
     - layer3
   coreset_sampling_ratio: 0.1
-  num_neighbors: 9 # 9 -> 15
+  num_neighbors: 9
   weight_file: weights/model.ckpt
   normalization_method: min_max # options: [null, min_max, cdf]
 
@@ -54,7 +49,7 @@ project:
 
 logging:
   log_images_to: ["local"] # options: [wandb, tensorboard, local]. Make sure you also set logger with using wandb or tensorboard.
-  logger: ["tensorboard"] # options: [tensorboard, wandb, csv] or combinations.
+  logger: [] # options: [tensorboard, wandb, csv] or combinations.
   log_graph: false # Logs the model graph to respective logger.
 
 # PL Trainer Args. Don't add extra parameter here.

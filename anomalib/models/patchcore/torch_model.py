@@ -157,8 +157,10 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         Returns:
             Tensor: Reshaped embedding tensor.
         """
-        embedding_size = embedding.size(1)  # 384
-        embedding = embedding.permute(0, 2, 3, 1).reshape(-1, embedding_size)   # [64*64, 384]
+        # embedding_size = embedding.size(1)  # 384
+        b, embedding_size, h, w = embedding.size()
+        # embedding = embedding.permute(0, 2, 3, 1).reshape(-1, embedding_size) # [64*64, 384]
+        embedding = embedding.permute(0, 2, 3, 1).reshape(b*h*w, embedding_size)
         # print('embedding', embedding.size())
         return embedding
 

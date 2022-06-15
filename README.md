@@ -114,18 +114,18 @@ Alternatively, a model name could also be provided as an argument, where the scr
 >  max_epochs=1
 
 ```bash
-python tools/train.py --model patchcore
-python tools/train.py --model padim
-python tools/train.py --model dfm
-python tools/train.py --model dfkde
+python tools/train.py --config anomalib/models/patchcore/custom_config.yaml
+python tools/train.py --config anomalib/models/padim/custom_config.yaml
+python tools/train.py --config anomalib/models/dfm/custom_config.yaml
+python tools/train.py --config anomalib/models/dfkde/custom_config.yaml
 ```
 
 >  max_epochs>1
 
 ```shell
-python tools/train.py --model cflow
-python tools/train.py --model ganomaly
-python tools/train.py --model stfpm
+python tools/train.py --model anomalib/models/cflow/custom_config.yaml
+python tools/train.py --model anomalib/models/ganomaly/custom_config.yaml
+python tools/train.py --model anomalib/models/stfpm/custom_config.yaml
 ```
 
 where the currently available models are:
@@ -233,7 +233,7 @@ As a quick example:
 
 ```bash
 python tools/inference.py \
-    --config anomalib/models/padim/config.yaml \
+    --config anomalib/models/padim/custom_config.yaml \
     --weight_path results/padim/mvtec/bottle/weights/model.ckpt \
     --image_path datasets/MVTec/bottle/test/broken_large/000.png \
     --save_path output
@@ -243,37 +243,37 @@ python tools/inference.py \
 
 ```shell
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-small/patchcore-224-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-small/patchcore-224-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-small/patchcore-384-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-small/patchcore-384-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-small/patchcore-512-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-small/patchcore-512-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
@@ -283,37 +283,37 @@ python tools/inference.py \
 
 ```shell
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
@@ -321,25 +321,23 @@ python tools/inference.py \
 
 ```shell
 python tools/inference.py `
-    --config anomalib/models/patchcore/config.yaml `
+    --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt `
     --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
     --save_path output
 
 python tools/inference.py `
-    --config anomalib/models/patchcore/config.yaml `
+    --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt `
     --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
     --save_path output
 
 python tools/inference.py `
-    --config anomalib/models/patchcore/config.yaml `
+    --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt `
     --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
     --save_path output
 ```
-
-
 
 > new
 >
@@ -347,19 +345,19 @@ python tools/inference.py `
 
 ```shell
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal-modify/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal-modify/ \
     --save_path output
 
 python tools/inference.py \
-    --config anomalib/models/patchcore/config.yaml \
+    --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal-modify/ \
     --save_path output
@@ -397,7 +395,7 @@ python tools/inference.py \
 
 ```shell
 python tools/export.py `
-    --config anomalib/models/patchcore/config.yaml `
+    --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt `
     --image_size 512
 ```

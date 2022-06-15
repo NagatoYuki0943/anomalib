@@ -21,7 +21,7 @@ def get_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--config", type=Path, required=True, help="Path to a model config file")
     parser.add_argument("--weight_path", type=Path, required=True, help="Path to a model weights")
-    parser.add_argument("--image_size", type=int, required=True, help="Image size")
+    parser.add_argument("--image_size", type=int, required=True, help="Image size,randn(1, 3, args.image_size, args.image_size)")
     parser.add_argument("--meta_data", type=Path, required=False, help="Path to JSON file containing the metadata.")
     args = parser.parse_args()
 
@@ -51,20 +51,26 @@ def export() -> None:
     #         f"OpenVINO Inferencer expects either .onnx, .bin or .xml file. Got {extension}"
     #     )
 
-    # print(inferencer.model)                             # PatchcoreLightning
-    # print(inferencer.model.model)                       # PatchcoreModel
-    # print(inferencer.model.model.memory_bank)
-    print(inferencer.model.model.memory_bank.size())    # [13107, 384]
+    print(type(inferencer.model))                           # anomalib.models.patchcore.lightning_model.PatchcoreLightning
+    print(inferencer.model.image_threshold.cpu().value)     # tensor(0.9531)
+    print(inferencer.model.pixel_threshold.cpu().value)     # tensor(0.9531)
+    print(inferencer.model.min_max.min.cpu())               # tensor(0.0008)
+    print(inferencer.model.min_max.max.cpu())               # tensor(1.6897)
+    print(type(inferencer.model.model))                     # anomalib.models.patchcore.torch_model.PatchcoreModel
+    print(inferencer.model.model.memory_bank.size())        # torch.Size([13107, 384])
 
-    #------------------------#
-    #   取出PatchcoreModel
-    #------------------------#
-    model = inferencer.model.model
+    #-----------------------------#
+    #   取出PatchcoreLightning
+    #   inferencer.model.model和inferencer.model到处结果相同
+    #-----------------------------#
+    model = inferencer.model
 
-    #--------------#
+    #-----------------------------#
     #   导出部分
-    #--------------#
-    onnx_path = "output.onnx"
+    #   pytorch1.11不支持导出cdist为onnx，不过github上的实现了，
+    #   复制github/torch/onnx/symboloc_opset9.py中对应代码到torch/onnx/symboloc_opset11.py,之所以用11是因为F.interpolate在11中才实现
+    #-----------------------------#
+    onnx_path = "./results/output.onnx"
     input = torch.randn(1, 3, args.image_size, args.image_size)
     # model = model.model
     model.eval()
@@ -73,15 +79,16 @@ def export() -> None:
                     onnx_path,                  # 模型保存 (can be a file or file-like object)
                     export_params=True,         # 如果指定为True或默认, 参数也会被导出. 如果你要导出一个没训练过的就设为 False.
                     verbose=False,              # 如果为True，则打印一些转换日志，并且onnx模型中会包含doc_string信息
-                    opset_version=15,           # ONNX version 值必须等于_onnx_main_opset或在_onnx_stable_opsets之内。具体可在torch/onnx/symbolic_helper.py中找到
+                    opset_version=11,           # ONNX version 值必须等于_onnx_main_opset或在_onnx_stable_opsets之内。具体可在torch/onnx/symbolic_helper.py中找到
                     do_constant_folding=True,   # 是否使用“常量折叠”优化。常量折叠将使用一些算好的常量来优化一些输入全为常量的节点。
                     input_names=["input"],      # 按顺序分配给onnx图的输入节点的名称列表
                     output_names=["output"],    # 按顺序分配给onnx图的输出节点的名称列表
-                    )
+                    dynamic_axes={"input": {0: "batch_size", 1: str(3), 2: "height", 3:"width"},  # variable length axes
+                                "output": {0: "batch_size", }})
 
-    #--------------#
+    #-----------------------------#
     #   onnx部分
-    #--------------#
+    #-----------------------------#
     # 载入onnx模块
     model_ = onnx.load(onnx_path)
     # print(model_)

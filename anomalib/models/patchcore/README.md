@@ -119,5 +119,19 @@ anomalib/deploy/inferencers/torch.py -> TorchInferencer(Inferencer):
 		将forward获得的热力图(1,1,512,512)和score(1.0392)标准化，使用了metadata中的min和max
 		将图片还原到原图尺寸
 		返回标准化的热力图和score
+
+
+anomalib/models/patchcore/lightning_model.py -> Patchcore(AnomalyModule) -> AnomalyModule(pl.LightningModule, ABC):
+	实现了pytorch_lightning的训练函数，实例化了下面的PatchcoreModel
+	training_step():
+		将每次训练过程中的结果([64*64, 384])放入列表中保存
+
+	on_validation_start():
+		将训练过程中保存的列表拼接起来，通过Patchcore模型中的subsample_embedding()下采样保留10%数据，放入model.memory+bank中
+
+
+anomalib/models/patchcore/torch_model.py -> PatchcoreModel(DynamicBufferModule, nn.Module): 主要模型
+	forward():
+		t
 ```
 

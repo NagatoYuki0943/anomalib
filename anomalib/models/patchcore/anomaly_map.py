@@ -19,6 +19,7 @@ from typing import Tuple, Union
 import torch
 import torch.nn.functional as F
 from kornia.filters import gaussian_blur2d
+# from torchvision.transforms import GaussianBlur
 from omegaconf import ListConfig
 
 
@@ -34,7 +35,7 @@ class AnomalyMapGenerator:
         self.sigma = sigma
 
     def compute_anomaly_map(self, patch_scores: torch.Tensor, feature_map_shape: torch.Size) -> torch.Tensor:
-        """ 根据topk的最小值绘制像素级别热力图
+        """ 取topk的每个像素最小值([:,0]),上采样到原图尺寸使用高斯模糊绘制热力图
             Pixel Level Anomaly Heatmap.
 
         Args:
@@ -54,7 +55,9 @@ class AnomalyMapGenerator:
         anomaly_map = F.interpolate(anomaly_map, size=(self.input_size[0], self.input_size[1]))     # [1, 1, 512, 512]
 
         kernel_size = 2 * int(4.0 * self.sigma + 0.5) + 1   # kernel_size=33
+        # 替换为torchvison版本
         anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(self.sigma, self.sigma))
+        # anomaly_map = GaussianBlur((kernel_size, kernel_size), sigma=(self.sigma, self.sigma))(anomaly_map)
         # print('anomaly_map', anomaly_map.size())                                                  # [1, 1, 512, 512]
         return anomaly_map
 
@@ -64,12 +67,12 @@ class AnomalyMapGenerator:
             Compute Image-Level Anomaly Score.
 
         Args:
-            patch_scores (torch.Tensor): Patch-level anomaly scores
+            patch_scores (torch.Tensor): Patch-level anomaly scores [4096, 9]
         Returns:
             torch.Tensor: Image-level anomaly scores
         """
-        # 找最小值中的最大值的下标
-        # print('patch_scores[:, 0]', patch_scores[:, 0].size())    # [4096]
+        # 找最小值([:,0])中的最大值的下标，最大值意味着找最近的值中最大的，意味着找到的值是没法贴近其他的正常值，它这一行作为异常值进行计算置信度
+        # print(patch_scores[:, 0].size())                          # [4096]
         # print(patch_scores[:, 0])                                 # tensor([0.7414, 0.8091, 0.6485,  ..., 0.4588, 0.6546, 0.3370])
         # print(patch_scores[:, 0][1051])                           # tensor(1.1790)
         max_scores = torch.argmax(patch_scores[:, 0])               # tensor(1051)  找最小值中的最大值的下标
