@@ -83,8 +83,7 @@ def export() -> None:
                     do_constant_folding=True,   # 是否使用“常量折叠”优化。常量折叠将使用一些算好的常量来优化一些输入全为常量的节点。
                     input_names=["input"],      # 按顺序分配给onnx图的输入节点的名称列表
                     output_names=["output"],    # 按顺序分配给onnx图的输出节点的名称列表
-                    dynamic_axes={"input": {0: "batch_size", 1: str(3), 2: "height", 3:"width"},  # variable length axes
-                                "output": {0: "batch_size", }})
+                    )
 
     #-----------------------------#
     #   onnx部分

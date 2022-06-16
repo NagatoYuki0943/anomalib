@@ -3,14 +3,14 @@ import onnxruntime as ort
 import numpy as np
 
 
-onnx_path = "./results/output.onnx"
+onnx_path = "./results/output 0.05.onnx"
 
 
 so = ort.SessionOptions()
 so.log_severity_level = 3
 
-# net = ort.InferenceSession(onnx_path, so, providers=['CPUExecutionProvider'])
-net = ort.InferenceSession(onnx_path, so, providers=['CUDAExecutionProvider'], provider_options=[{'device_id': 0}])
+net = ort.InferenceSession(onnx_path, so, providers=['CPUExecutionProvider'])
+# net = ort.InferenceSession(onnx_path, so, providers=['CUDAExecutionProvider'], provider_options=[{'device_id': 0}])
 
 x = np.random.randn(1, 3, 512, 512)
 x = x.astype(dtype=np.float32)
@@ -23,7 +23,6 @@ output_name = net.get_outputs()[0].name
 # print(output_name)  # output
 
 
-out = net.run(None, {input_name: x})[0]
+out = net.run(None, {input_name: x})
 print(out)
-
 

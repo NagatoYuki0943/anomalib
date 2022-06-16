@@ -244,97 +244,141 @@ python tools/inference.py \
 ```shell
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-small/patchcore-224-n9/some/weights/model.ckpt \
+    --weight_path results/character-small/patchcore-224-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-small/patchcore-224-n9/some/weights/model.ckpt \
+    --weight_path results/character-small/patchcore-224-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-small/patchcore-384-n9/some/weights/model.ckpt \
+    --weight_path results/character-small/patchcore-384-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-small/patchcore-384-n9/some/weights/model.ckpt \
+    --weight_path results/character-small/patchcore-384-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-small/patchcore-512-n9/some/weights/model.ckpt \
+    --weight_path results/character-small/patchcore-512-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-small/patchcore-512-n9/some/weights/model.ckpt \
+    --weight_path results/character-small/patchcore-512-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 ```
 
 > character-big
+>
+> 0.1
 
 ```shell
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-768-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-768-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-1024-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/1.abnormal/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-1024-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal/ \
     --save_path output
 ```
 
+> 0.05
+
+```shell
+python tools/inference.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-512-0.05-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-512-0.05-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-768-0.05-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-768-0.05-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-1024-0.05-n9/some/weights/model.ckpt \
+    --image_path datasets/some/1.abnormal/ \
+    --save_path output
+
+python tools/inference.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-1024-0.05-n9/some/weights/model.ckpt \
+    --image_path datasets/some/0.normal/ \
+    --save_path output
+```
+
+
+
 ```shell
 python tools/inference.py `
     --config anomalib/models/patchcore/custom_config.yaml `
-    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt `
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt `
     --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
     --save_path output
 
 python tools/inference.py `
     --config anomalib/models/patchcore/custom_config.yaml `
-    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt `
+    --weight_path results/character-big/patchcore-768-0.1-n9/some/weights/model.ckpt `
     --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
     --save_path output
 
 python tools/inference.py `
     --config anomalib/models/patchcore/custom_config.yaml `
-    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt `
+    --weight_path results/character-big/patchcore-1024-0.1-n9/some/weights/model.ckpt `
     --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
     --save_path output
 ```
@@ -346,19 +390,19 @@ python tools/inference.py `
 ```shell
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal-modify/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-768-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-768-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal-modify/ \
     --save_path output
 
 python tools/inference.py \
     --config anomalib/models/patchcore/custom_config.yaml \
-    --weight_path results/character-big/patchcore-1024-n9/some/weights/model.ckpt \
+    --weight_path results/character-big/patchcore-1024-0.1-n9/some/weights/model.ckpt \
     --image_path datasets/some/0.normal-modify/ \
     --save_path output
 ```
@@ -391,12 +435,35 @@ python tools/inference.py \
 
 > Ensure that you provide path to `meta_data.json` if you want the normalization to be applied correctly.
 
+## Inference Gradio
+
+```shell
+python tools/inference_gradio.py \
+	--config_path anomalib/models/patchcore/custom_config.yaml \
+	--weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt
+
+python tools/inference_gradio.py `
+	--config_path anomalib/models/patchcore/custom_config.yaml `
+	--weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt
+```
+
+
+
+
+
+
+
 ## Export
 
 ```shell
 python tools/export.py `
     --config anomalib/models/patchcore/custom_config.yaml `
-    --weight_path results/character-big/patchcore-512-n9/some/weights/model.ckpt `
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt `
+    --image_size 512
+
+python tools/export.py `
+    --config anomalib/models/patchcore/custom_config.yaml `
+    --weight_path results/character-big/patchcore-512-0.05-n9/some/weights/model.ckpt `
     --image_size 512
 ```
 

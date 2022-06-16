@@ -19,7 +19,7 @@ from typing import Tuple, Union
 import torch
 import torch.nn.functional as F
 from kornia.filters import gaussian_blur2d
-# from torchvision.transforms import GaussianBlur
+from torchvision.transforms import GaussianBlur
 from omegaconf import ListConfig
 
 
@@ -56,8 +56,8 @@ class AnomalyMapGenerator:
 
         kernel_size = 2 * int(4.0 * self.sigma + 0.5) + 1   # kernel_size=33
         # 替换为torchvison版本
-        anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(self.sigma, self.sigma))
-        # anomaly_map = GaussianBlur((kernel_size, kernel_size), sigma=(self.sigma, self.sigma))(anomaly_map)
+        # anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(self.sigma, self.sigma))
+        anomaly_map = GaussianBlur(kernel_size, sigma=(self.sigma, self.sigma))(anomaly_map)
         # print('anomaly_map', anomaly_map.size())                                                  # [1, 1, 512, 512]
         return anomaly_map
 
