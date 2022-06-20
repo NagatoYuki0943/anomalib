@@ -124,7 +124,6 @@ def superimpose_anomaly_map(
         normalize: whether or not the anomaly maps should
             be normalized to image min-max
 
-
     Returns:
         np.ndarray: Image with anomaly map superimposed on top of it.
     """
