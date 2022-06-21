@@ -115,8 +115,8 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             anomaly_map, anomaly_score = self.anomaly_map_generator(
                 patch_scores=patch_scores, feature_map_shape=feature_map_shape  # [64*64, 9], [64, 64]
             )
-            print('anomaly_map:', anomaly_map.size())   # torch.Size([1, 1, 512, 512])
-            print('anomaly_score:', anomaly_score)      # tensor(1.0392)
+            # print('anomaly_map:', anomaly_map.size())   # torch.Size([1, 1, 512, 512])
+            # print('anomaly_score:', anomaly_score)      # tensor(1.0392)
             # 根据topk的最小值绘制像素级别热力图, 得到图片级别分数
             # [1, 1, 512, 512]  [1]
             output = (anomaly_map, anomaly_score)
@@ -190,7 +190,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         # 代表将图片分为4096个点，每个点都进行错误预测
         #print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
-        print('distances:', distances.size())                                       # [4096, 13107] 代表4096个点和默认的13107个点都计算了距离，每一行代表1个点到13107个点的距离
+        print('distances:', distances.size())                                        # [4096, 13107] 代表4096个点和默认的13107个点都计算了距离，每一行代表1个点到13107个点的距离
         patch_scores, _ = distances.topk(k=n_neighbors, largest=False, dim=1)
         #print('patch_scores:', patch_scores.size())                                 # [4096, 9] 保留最近的9个点 largest=False
         return patch_scores

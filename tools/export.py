@@ -45,8 +45,8 @@ def export() -> None:
         inferencer = TorchInferencer(config=config, model_source=args.weight_path, meta_data_path=args.meta_data)
 
     # print('*'*100)
-    print(type(inferencer.model))                               # anomalib.models.patchcore.lightning_model.PatchcoreLightning
-    print(type(inferencer.model.model))                         # anomalib.models.patchcore.torch_model.PatchcoreModel
+    # print(type(inferencer.model))                             # anomalib.models.patchcore.lightning_model.PatchcoreLightning
+    # print(type(inferencer.model.model))                       # anomalib.models.patchcore.torch_model.PatchcoreModel
 
     image_threshold = inferencer.model.image_threshold.cpu().value.item()
     # print(image_threshold)                                    # 1.0792253017425537

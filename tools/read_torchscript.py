@@ -1,13 +1,13 @@
+import numpy as np
+import json
+import cv2
 import torch
+from torch import Tensor
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from typing import Union, Dict, Tuple, Optional
 from omegaconf import DictConfig
 from kornia.filters import gaussian_blur2d
-from torch import Tensor
-import numpy as np
-import json
-import cv2
 
 
 #-----------------------------#
@@ -247,13 +247,13 @@ def add_label(prediction: np.ndarray, scores: float, font: int = cv2.FONT_HERSHE
 #-----------------------------#
 # 预测函数
 #-----------------------------#
-def predict(image_path: str, torchscript_path: str):
+def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir: str) -> None:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # 打开图片
     image, origin_height, origin_width = load_image(image_path)
     # 获取meta_data
-    meta_data = get_meta_data("./results/param.json")
+    meta_data = get_meta_data(param_dir)
     # 推理时使用的图片大小
     pred_image_size = meta_data["pred_image_size"]
     meta_data["image_shape"] = [origin_height, origin_width]
@@ -290,10 +290,12 @@ def predict(image_path: str, torchscript_path: str):
     output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
 
     # 写入图片
-    cv2.imwrite(filename="./results/output.jpg", img=output)
+    cv2.imwrite(filename=save_img_dir, img=output)
 
 
 if __name__ == "__main__":
-    torchscript_path = "./results/output.torchscript"
-    image_path = "./datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg"
-    predict(image_path, torchscript_path)
+    image_path       = "./datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg"
+    torchscript_path = "./results/export/512-0.1/output.torchscript"
+    param_dir        = "./results/export/512-0.1/param.json"
+    save_img_dir     = "./results/export/512-0.1/output.jpg"
+    predict(image_path, torchscript_path, param_dir, save_img_dir)
