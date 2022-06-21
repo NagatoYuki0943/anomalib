@@ -43,7 +43,7 @@ def export() -> None:
         module = import_module("anomalib.deploy.inferencers.torch")
         TorchInferencer = getattr(module, "TorchInferencer")    # pylint: disable=invalid-name
         inferencer = TorchInferencer(config=config, model_source=args.weight_path, meta_data_path=args.meta_data)
-    return
+
     # print('*'*100)
     print(type(inferencer.model))                               # anomalib.models.patchcore.lightning_model.PatchcoreLightning
     print(type(inferencer.model.model))                         # anomalib.models.patchcore.torch_model.PatchcoreModel
