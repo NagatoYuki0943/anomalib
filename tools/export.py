@@ -41,31 +41,23 @@ def export() -> None:
     inferencer: Inferencer
     if extension in (".ckpt"):
         module = import_module("anomalib.deploy.inferencers.torch")
-        TorchInferencer = getattr(module, "TorchInferencer")  # pylint: disable=invalid-name
+        TorchInferencer = getattr(module, "TorchInferencer")    # pylint: disable=invalid-name
         inferencer = TorchInferencer(config=config, model_source=args.weight_path, meta_data_path=args.meta_data)
-    # elif extension in (".onnx", ".bin", ".xml"):
-    #     module = import_module("anomalib.deploy.inferencers.openvino")
-    #     OpenVINOInferencer = getattr(module, "OpenVINOInferencer")  # pylint: disable=invalid-name
-    #     inferencer = OpenVINOInferencer(config=config, path=args.weight_path, meta_data_path=args.meta_data)
-    # else:
-    #     raise ValueError(
-    #         f"Model extension is not supported. Torch Inferencer exptects a .ckpt file,"
-    #         f"OpenVINO Inferencer expects either .onnx, .bin or .xml file. Got {extension}"
-    #     )
+    return
+    # print('*'*100)
+    print(type(inferencer.model))                               # anomalib.models.patchcore.lightning_model.PatchcoreLightning
+    print(type(inferencer.model.model))                         # anomalib.models.patchcore.torch_model.PatchcoreModel
 
-    print('*'*100)
-    print(type(inferencer.model))                           # anomalib.models.patchcore.lightning_model.PatchcoreLightning
     image_threshold = inferencer.model.image_threshold.cpu().value.item()
-    print(image_threshold)                                  # 1.0792253017425537
+    # print(image_threshold)                                    # 1.0792253017425537
     pixel_threshold = inferencer.model.pixel_threshold.cpu().value.item()
-    print(pixel_threshold)                                  # 1.0792253017425537
+    # print(pixel_threshold)                                    # 1.0792253017425537
     min = inferencer.model.min_max.min.cpu().item()
-    print(min)                                              # 0.02163715288043022
+    # print(min)                                                # 0.02163715288043022
     max = inferencer.model.min_max.max.cpu().item()
-    print(max)                                              # 1.7123807668685913
-    print(type(inferencer.model.model))                     # anomalib.models.patchcore.torch_model.PatchcoreModel
-    print(inferencer.model.model.memory_bank.size())        # torch.Size([13107, 384])
-    print('*'*100)
+    # print(max)                                                # 1.7123807668685913
+    # print(inferencer.model.model.memory_bank.size())          # torch.Size([13107, 384])
+    # print('*'*100)
 
     #-----------------------------#
     #   保存参数
@@ -73,16 +65,17 @@ def export() -> None:
     param = {"image_threshold": image_threshold,
              "pixel_threshold": pixel_threshold,
              "min": min,
-             "max": max
+             "max": max,
+             "pred_image_size": args.image_size,
              }
     with open("./results/param.json", mode='w', encoding='utf-8') as f:
         json.dump(param, f)
 
     #-----------------------------#
     #   取出PatchcoreLightning
-    #   inferencer.model.model和inferencer.model到处结果相同
+    #   inferencer.model.model和inferencer.model
     #-----------------------------#
-    model = inferencer.model
+    model = inferencer.model.model.eval()
     input = torch.randn(1, 3, args.image_size, args.image_size)
 
     if args.format != 'torchscript':
@@ -93,7 +86,6 @@ def export() -> None:
         #-----------------------------#
         onnx_path = "./results/output.onnx"
         # model = model.model
-        model.eval()
         torch.onnx.export(model,                    # 保存的模型
                         input,                      # 模型输入
                         onnx_path,                  # 模型保存 (can be a file or file-like object)

@@ -367,19 +367,19 @@ python tools/inference.py \
 python tools/inference.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt `
-    --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
+    --image_path datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg `
     --save_path output
 
 python tools/inference.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-768-0.1-n9/some/weights/model.ckpt `
-    --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
+    --image_path datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg `
     --save_path output
 
 python tools/inference.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-1024-0.1-n9/some/weights/model.ckpt `
-    --image_path datasets/some/1.abnormal/OriginImage_20220526_113036_Cam1_1_crop.jpg `
+    --image_path datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg `
     --save_path output
 ```
 
@@ -449,21 +449,27 @@ python tools/inference_gradio.py `
 
 
 
-
-
-
-
 ## Export
 
+> 注意： 导出patchcore时要将`anomalib/models/patchcore/anomaly_map.py` 60行的`gaussian_blur2d`注释掉，训练时再打开，注释掉的部分在使用部分添加上去
+
 ```shell
+python tools/export.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
+    --image_size 512
+
+python tools/export.py \
+    --config anomalib/models/patchcore/custom_config.yaml \
+    --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
+    --image_size 512 \
+    --format torchscript
+
+#------------------------------------------------------------------------------------------#
+
 python tools/export.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt `
-    --image_size 512
-
-python tools/export.py `
-    --config anomalib/models/patchcore/custom_config.yaml `
-    --weight_path results/character-big/patchcore-512-0.05-n9/some/weights/model.ckpt `
     --image_size 512
 
 python tools/export.py `

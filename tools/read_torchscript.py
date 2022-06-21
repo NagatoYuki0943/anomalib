@@ -1,16 +1,37 @@
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from PIL import Image
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Optional
 from omegaconf import DictConfig
+from kornia.filters import gaussian_blur2d
 from torch import Tensor
 import numpy as np
 import json
 import cv2
 
-script_path = "./results/output.torchscript"
-image_path = "./datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg"
+
+#-----------------------------#
+# 打开图片
+#-----------------------------#
+def load_image(image_path: str) -> np.ndarray:
+    image = cv2.imread(image_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    origin_height = image.shape[0]
+    origin_width  = image.shape[1]
+    return image, origin_height, origin_width
+
+
+#-----------------------------#
+# 图片预处理
+#-----------------------------#
+def get_transform(height, width):
+    return A.Compose(
+        [
+            A.Resize(height=height, width=width, always_apply=True),
+            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ToTensorV2(),
+        ]
+    )
 
 
 #-----------------------------#
@@ -67,6 +88,62 @@ def normalize(
             pred_scores, meta_data["image_threshold"], meta_data["min"], meta_data["max"]
         )
     return anomaly_maps, float(pred_scores)
+
+
+#-----------------------------#
+# 预测结果后处理，包括归一化，所放到原图尺寸
+#-----------------------------#
+def post_process(
+    predictions: Tensor, meta_data: Optional[Union[Dict, DictConfig]] = None
+) -> Tuple[np.ndarray, float]:
+    """Post process the output predictions.
+
+    Args:
+        predictions (Tensor): Raw output predicted by the model.
+        meta_data (Dict, optional): Meta data. Post-processing step sometimes requires
+            additional meta data such as image shape. This variable comprises such info.
+            Defaults to None.
+
+    Returns:
+        np.ndarray: Post processed predictions that are ready to be visualized.
+    这里返回的结果和inference的图像结果有些许不同，小数点后几位不同，不过得分相同
+    """
+
+    if isinstance(predictions, Tensor):
+        anomaly_map = predictions
+        pred_score = anomaly_map.reshape(-1).max()
+    else:
+        # NOTE: Patchcore `forward`` returns heatmap and score.
+        #   We need to add the following check to ensure the variables
+        #   are properly assigned. Without this check, the code
+        #   throws an error regarding type mismatch torch vs np.
+        if isinstance(predictions[1], (Tensor)):
+            anomaly_map, pred_score = predictions   # torch.Size([1, 1, 512, 512])
+            pred_score = pred_score.detach()        # tensor(1.0392)
+        else:
+            anomaly_map, pred_score = predictions
+            pred_score = pred_score.detach().numpy()
+
+    anomaly_map = anomaly_map.squeeze()             # torch.Size([1, 1, 512, 512]) -> torch.Size([512, 512])
+
+    #------------------------------#
+    #   标准化
+    #------------------------------#
+    anomaly_map, pred_score = normalize(anomaly_map, pred_score, meta_data)
+
+    if isinstance(anomaly_map, Tensor):
+        anomaly_map = anomaly_map.detach().cpu().numpy()
+
+    #------------------------------#
+    #   所放到原图尺寸
+    #------------------------------#
+    if "image_shape" in meta_data and anomaly_map.shape != meta_data["image_shape"]:
+        image_height = meta_data["image_shape"][0]
+        image_width = meta_data["image_shape"][1]
+        anomaly_map = cv2.resize(anomaly_map, (image_width, image_height))
+
+    # 返回图像和得分给inference.py
+    return anomaly_map, float(pred_score)
 
 
 #-----------------------------#
@@ -142,7 +219,6 @@ def get_meta_data(jsonpath):
         meta_data = json.load(f)
     print(meta_data)
     return meta_data
-meta_data = get_meta_data("./results/param.json")
 
 
 #-----------------------------#
@@ -168,52 +244,56 @@ def add_label(prediction: np.ndarray, scores: float, font: int = cv2.FONT_HERSHE
     return prediction
 
 
+#-----------------------------#
+# 预测函数
+#-----------------------------#
+def predict(image_path: str, torchscript_path: str):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-transform = A.Compose(
-    [
-        A.Resize(height=512, width=512, always_apply=True),
-        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ToTensorV2(),
-    ]
-)
+    # 打开图片
+    image, origin_height, origin_width = load_image(image_path)
+    # 获取meta_data
+    meta_data = get_meta_data("./results/param.json")
+    # 推理时使用的图片大小
+    pred_image_size = meta_data["pred_image_size"]
+    meta_data["image_shape"] = [origin_height, origin_width]
+
+    # 读取模型
+    trace_module = torch.jit.load(torchscript_path).to(device)
+
+    # 图片预处理
+    transform = get_transform(pred_image_size, pred_image_size)
+    image_tensor = transform(image=image)
+    image_tensor = image_tensor['image'].unsqueeze(0).to(device)
+
+    # 预测得到热力图和概率
+    predictions = trace_module(image_tensor)
+    anomaly_map, pred_score = predictions
+
+    # 将模型中的高斯滤波放到外面，它会调用cuda，在模型中使用cuda它没法移动到cuda上，会报错，所以放到这里
+    sigma = 4
+    kernel_size = 2 * int(4.0 * sigma + 0.5) + 1   # kernel_size=33
+    anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(sigma, sigma))
+
+    # 预测结果后处理，包括归一化热力图和概率，所放到原图尺寸
+    anomaly_map, pred_score = post_process((anomaly_map, pred_score), meta_data)
+    # print(anomaly_map)
+    print("pred_score", pred_score)                      # 0.6027931678867513
+
+    # 混合原图
+    superimposed_map = superimpose_anomaly_map(anomaly_map, image)
+    # print(superimposed_map.shape)                      # (2711, 5351, 3)
+    # print(superimposed_map)
+
+    # 添加标签
+    output = add_label(superimposed_map, pred_score)
+    output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
+
+    # 写入图片
+    cv2.imwrite(filename="./results/output.jpg", img=output)
 
 
-# 打开图片
-image = Image.open(image_path)
-origin_height = image.height
-origin_width  = image.width
-image = np.array(image)
-image_tensor = transform(image=image)
-image_tensor = image_tensor['image'].unsqueeze(0)
-
-# 读取模型
-trace_module = torch.jit.load(script_path)
-
-# 得到结果
-with torch.no_grad():
-    anomaly_map, score = trace_module(image_tensor)
-
-print(anomaly_map.size())                           # [1, 1, 512, 512]  没有经过标准化
-print(score)                                        # tensor(1.2107)
-anomaly_map = anomaly_map.squeeze()                 # [1, 1, 512, 512] -> [512, 512]
-anomaly_map = anomaly_map.detach().numpy()
-score = score.detach().numpy()
-
-# 归一化数据
-anomaly_map, score = normalize(anomaly_map, score, meta_data)
-print(score)                                        # 0.6027931678867513
-
-# 还原anomalib图片大小
-print(anomaly_map.shape)                            # (512, 512)
-anomaly_map = cv2.resize(anomaly_map, (origin_width, origin_height))
-print(anomaly_map.shape)                            # (2711, 5351)
-
-# 混合原图
-superimposed_map = superimpose_anomaly_map(anomaly_map, image)
-print(superimposed_map.shape)                       # (2711, 5351, 3)
-
-# 添加标签
-output = add_label(superimposed_map, score)
-
-# 写入图片
-cv2.imwrite(filename="./results/output.jpg", img=output)
+if __name__ == "__main__":
+    torchscript_path = "./results/output.torchscript"
+    image_path = "./datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg"
+    predict(image_path, torchscript_path)

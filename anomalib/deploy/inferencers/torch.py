@@ -114,7 +114,6 @@ class TorchInferencer(Inferencer):
 
         if len(processed_image) == 3:
             processed_image = processed_image.unsqueeze(0)
-
         return processed_image
 
     #----------------------------------------------------#
@@ -186,5 +185,5 @@ class TorchInferencer(Inferencer):
             image_width = meta_data["image_shape"][1]
             anomaly_map = cv2.resize(anomaly_map, (image_width, image_height))
 
-        # 返回混合后的图像和得分给inference.py
+        # 返回图像和得分给inference.py
         return anomaly_map, float(pred_score)

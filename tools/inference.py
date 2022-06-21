@@ -157,6 +157,7 @@ def infer(image_path: Path, inferencer: Inferencer, save_path: Optional[Path] = 
     # Show or save the output image, depending on what's provided as
     # the command line argument.
     output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
+
     if save_path is None:
         cv2.imshow("Anomaly Map", output)
         cv2.waitKey(0)  # wait for any key press

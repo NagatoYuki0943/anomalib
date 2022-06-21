@@ -55,9 +55,9 @@ class AnomalyMapGenerator:
         anomaly_map = F.interpolate(anomaly_map, size=(self.input_size[0], self.input_size[1]))     # [1, 1, 512, 512]
 
         kernel_size = 2 * int(4.0 * self.sigma + 0.5) + 1   # kernel_size=33
-        # 替换为torchvison版本
+
+        # 导出时不使用它，自己写
         # anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(self.sigma, self.sigma))
-        anomaly_map = GaussianBlur(kernel_size, sigma=(self.sigma, self.sigma))(anomaly_map)
         # print('anomaly_map', anomaly_map.size())                                                  # [1, 1, 512, 512]
         return anomaly_map
 

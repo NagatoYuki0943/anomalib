@@ -132,6 +132,7 @@ def superimpose_anomaly_map(
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
     # 叠加图片
     superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)
+
     return superimposed_map
 
 

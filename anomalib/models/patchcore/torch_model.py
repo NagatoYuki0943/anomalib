@@ -42,7 +42,6 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
     ) -> None:
         super().__init__()
         self.tiler: Optional[Tiler] = None
-
         self.backbone = getattr(torchvision.models, backbone)
         self.layers = layers
         self.input_size = input_size        # [512, 512]
@@ -189,9 +188,9 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Patch scores.
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
-        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
+        #print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
         print('distances:', distances.size())                                       # [4096, 13107] 代表4096个点和默认的13107个点都计算了距离，每一行代表1个点到13107个点的距离
         patch_scores, _ = distances.topk(k=n_neighbors, largest=False, dim=1)
-        print('patch_scores:', patch_scores.size())                                 # [4096, 9] 保留最近的9个点 largest=False
+        #print('patch_scores:', patch_scores.size())                                 # [4096, 9] 保留最近的9个点 largest=False
         return patch_scores
