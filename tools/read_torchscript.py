@@ -28,7 +28,7 @@ def get_transform(height, width):
     return A.Compose(
         [
             A.Resize(height=height, width=width, always_apply=True),
-            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)), # 归一化+标准化
             ToTensorV2(),
         ]
     )
