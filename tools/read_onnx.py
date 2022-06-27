@@ -3,7 +3,7 @@ import onnxruntime as ort
 import numpy as np
 
 
-onnx_path = "./results/output 0.01.onnx"
+onnx_path = "./results/output_512_0.01.onnx"
 
 
 so = ort.SessionOptions()

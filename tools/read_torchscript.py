@@ -35,6 +35,24 @@ def get_transform(height, width):
 
 
 #-----------------------------#
+# 获取meta_data
+#-----------------------------#
+def get_meta_data(jsonpath):
+    """获取 image_threshold, pixel_threshold, min, max
+
+    Args:
+        jsonpath (str): json file path
+
+    Returns:
+        meta_data(dict): metadata
+    """
+    with open(jsonpath, mode='r', encoding='utf-8') as f:
+        meta_data = json.load(f)
+    print(meta_data)
+    return meta_data
+
+
+#-----------------------------#
 # 分别标准化热力图和得分
 #-----------------------------#
 def normalize_min_max(
@@ -201,24 +219,6 @@ def superimpose_anomaly_map(
     # 叠加图片
     superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)
     return superimposed_map
-
-
-#-----------------------------#
-# 获取meta_data
-#-----------------------------#
-def get_meta_data(jsonpath):
-    """获取 image_threshold, pixel_threshold, min, max
-
-    Args:
-        jsonpath (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    with open(jsonpath, mode='r', encoding='utf-8') as f:
-        meta_data = json.load(f)
-    print(meta_data)
-    return meta_data
 
 
 #-----------------------------#
