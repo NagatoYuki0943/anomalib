@@ -172,6 +172,48 @@ dataset:
     random_tile_count: 16
 ```
 
+> example
+```yaml
+dataset:
+  name: <name-of-the-dataset>
+  format: folder
+  path: ./datasets/some
+  normal_dir: 0.normal # name of the folder containing normal images.
+  abnormal_dir: 1.abnormal # name of the folder containing abnormal images.
+  normal_test_dir: null # name of the folder containing normal test images.
+  task: segmentation # classification or segmentation
+  mask: null # optional
+  extensions: null
+  split_ratio: 0.2  # ratio of the normal images that will be used to create a test split
+  image_size: 512
+  train_batch_size: 1
+  test_batch_size: 1
+  num_workers: 1
+  transform_config:
+    train: null
+    val: null
+  create_validation_set: true
+  tiling:
+    apply: false
+    tile_size: null
+    stride: null
+    remove_border_count: 0
+    use_random_tiling: False
+    random_tile_count: 16
+```
+
+> 文件夹实例
+```python
+├── datasets
+│   └── some
+│       ├── 0.normal
+│       │   normal images
+│       └── 1.abnormal
+│           abnormalimages
+```
+
+----
+
 ### ⚠️ Anomalib > v.0.4.0 Beta - Subject to Change
 We introduce a new CLI approach that uses [PyTorch Lightning CLI](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_cli.html). To train a model using the new CLI, one would call the following:
 ```bash
