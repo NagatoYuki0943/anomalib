@@ -180,11 +180,11 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
         np.ndarray: [description]                                                           [2711, 5351, 3]
     """
     if normalize:
-        anomaly_map = (anomaly_map - anomaly_map.min()) / np.ptp(anomaly_map)
-    anomaly_map = anomaly_map * 255 # 0~1 -> 0~255
-    anomaly_map = anomaly_map.astype(np.uint8)  # 变为整数
+        anomaly_map = (anomaly_map - anomaly_map.min()) / np.ptp(anomaly_map)   # np.ptp()函数实现的功能等同于np.max(array) - np.min(array)
+    anomaly_map = anomaly_map * 255                                             # 0~1 -> 0~255
+    anomaly_map = anomaly_map.astype(np.uint8)                                  # 变为整数
 
-    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)  # [2711, 5351] -> [2711, 5351, 3]
+    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)              # [2711, 5351] -> [2711, 5351, 3]
     anomaly_map = cv2.cvtColor(anomaly_map, cv2.COLOR_BGR2RGB)
     return anomaly_map
 
@@ -265,7 +265,7 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
     transform = get_transform(pred_image_size, pred_image_size)
     image_tensor = transform(image=image)
     image_tensor = image_tensor['image'].unsqueeze(0).to(device)
-
+    print(image_tensor.sum())   # tensor(-852891.8750, device='cuda:0')
     # 预测得到热力图和概率
     predictions = trace_module(image_tensor)
     anomaly_map, pred_score = predictions
@@ -294,7 +294,7 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
 
 
 if __name__ == "__main__":
-    image_path       = "./datasets/some/1.abnormal/OriginImage_20220526_113038_Cam1_2_crop.jpg"
+    image_path       = "./datasets/some/1.abnormal/OriginImage_20220526_113206_Cam1_6_crop.jpg"
     torchscript_path = "./results/export/512-0.1/output.torchscript"
     param_dir        = "./results/export/512-0.1/param.json"
     save_img_dir     = "./results/export/512-0.1/output.jpg"
