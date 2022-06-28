@@ -84,6 +84,7 @@ pip install -e .
 
 
 ## Training
+### ⚠️ Anomalib < v.0.4.0
 
 By default [`python tools/train.py`](https://gitlab-icv.inn.intel.com/algo_rnd_team/anomaly/-/blob/development/train.py)
 runs [PADIM](https://arxiv.org/abs/2011.08785) model on `leather` category from the [MVTec AD](https://www.mvtec.com/company/research/datasets/mvtec-ad) [(CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/)  dataset.
@@ -170,50 +171,25 @@ dataset:
     use_random_tiling: False
     random_tile_count: 16
 ```
-> example
 
-```yaml
-dataset:
-  name: <name-of-the-dataset>
-  format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal # name of the folder containing abnormal images.
-  normal_test_dir: null # name of the folder containing normal test images.
-  task: segmentation # classification or segmentation
-  mask: null # optional
-  extensions: null
-  split_ratio: 0.2  # ratio of the normal images that will be used to create a test split
-  image_size: 512
-  train_batch_size: 1
-  test_batch_size: 1
-  num_workers: 1
-  transform_config:
-    train: null
-    val: null
-  create_validation_set: true
-  tiling:
-    apply: false
-    tile_size: null
-    stride: null
-    remove_border_count: 0
-    use_random_tiling: False
-    random_tile_count: 16
+=======
+>>>>>>> 85484ffe69537c6cdb1134c0602ce977bedd85a0
+
+### ⚠️ Anomalib > v.0.4.0 Beta - Subject to Change
+We introduce a new CLI approach that uses [PyTorch Lightning CLI](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_cli.html). To train a model using the new CLI, one would call the following:
+```bash
+anomalib fit --config <path/to/new/config/file>
 ```
 
-> 文件夹实例
-
-```python
-├── datasets
-│   └── some
-│       ├── 0.normal
-│       │   normal images
-│       └── 1.abnormal
-│           abnormalimages
+For instance, to train a [PatchCore](https://github.com/openvinotoolkit/anomalib/tree/development/anomalib/models/patchcore) model, the following command would be run:
+```bash
+anomalib fit --config ./configs/model/patchcore.yaml
 ```
+
+The new CLI approach offers a lot more flexibility, details of which are explained in the [documentation](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_cli.html).
 
 ## Inference
-
+### ⚠️ Anomalib < v.0.4.0
 Anomalib contains several tools that can be used to perform inference with a trained model. The script in [`tools/inference`](tools/inference.py) contains an example of how the inference tools can be used to generate a prediction for an input image.
 
 If the specified weight path points to a PyTorch Lightning checkpoint file (`.ckpt`), inference will run in PyTorch. If the path points to an ONNX graph (`.onnx`) or OpenVINO IR (`.bin` or `.xml`), inference will run in OpenVINO.
