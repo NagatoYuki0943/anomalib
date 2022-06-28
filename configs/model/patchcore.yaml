@@ -1,49 +1,54 @@
-dataset:
-  name: mvtec #options: [mvtec, btech, folder]
-  format: mvtec
-  path: ./datasets/MVTec
-  category: bottle
-  task: classification
-  image_size: 256
-  train_batch_size: 32
-  test_batch_size: 32
-  num_workers: 8
-  transform_config:
-    train: null
-    val: null
-  create_validation_set: false
+# This is the config file for the new Anomalib CLI.
+# To use this, run the following command:
+# anomalib fit --config ./config/model.patchcore.yaml
+ckpt_path: null
+seed_everything: null
+
+data:
+  class_path: anomalib.data.MVTec
+  init_args:
+    root: ./datasets/MVTec
+    category: bottle
+    image_size: [224, 224]
+    train_batch_size: 32
+    test_batch_size: 1
+    num_workers: 8
+    task: segmentation
+    transform_config_train: null
+    transform_config_val: null
+    create_validation_set: false
 
 model:
-  name: dfm
-  backbone: resnet18
-  layer: layer3
-  pooling_kernel_size: 4
-  pca_level: 0.97
-  score_type: fre # nll: for Gaussian modeling, fre: pca feature reconstruction error
-  project_path: ./results
-  normalization_method: min_max # options: [null, min_max, cdf]
+  class_path: anomalib.models.Patchcore
+  init_args:
+    input_size:
+      - 224 # Height
+      - 224 # Width
+    backbone: wide_resnet50_2
+    layers:
+      - layer2
+      - layer3
+    coreset_sampling_ratio: 0.1
+    num_neighbors: 9
 
 metrics:
-  image:
+  adaptive_threshold: true
+  default_image_threshold: null
+  default_pixel_threshold: null
+  image_metric_names:
     - F1Score
     - AUROC
-  pixel:
+  pixel_metric_names:
     - F1Score
     - AUROC
-  threshold:
-    image_default: 0
-    adaptive: true
+  normalization_method: min_max
 
-project:
-  seed: 42
-  path: ./results
+visualization:
+  task: segmentation
+  log_images_to:
+    - local
+  inputs_are_normalized: true
 
-logging:
-  log_images_to: [] # Not available for classification-based models.
-  logger: [] # options: [tensorboard, wandb, csv] or combinations.
-  log_graph: false # Logs the model graph to respective logger.
-
-# PL Trainer Args. Don't add extra parameter here.
 trainer:
   accelerator: auto # <"cpu", "gpu", "tpu", "ipu", "hpu", "auto">
   accumulate_grad_batches: 1
@@ -86,6 +91,7 @@ trainer:
   profiler: null
   reload_dataloaders_every_n_epochs: 0
   replace_sampler_ddp: true
+  resume_from_checkpoint: null
   strategy: null
   sync_batchnorm: false
   tpu_cores: null
