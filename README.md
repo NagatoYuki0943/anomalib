@@ -172,9 +172,6 @@ dataset:
     random_tile_count: 16
 ```
 
-=======
->>>>>>> 85484ffe69537c6cdb1134c0602ce977bedd85a0
-
 ### ⚠️ Anomalib > v.0.4.0 Beta - Subject to Change
 We introduce a new CLI approach that uses [PyTorch Lightning CLI](https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_cli.html). To train a model using the new CLI, one would call the following:
 ```bash
@@ -190,6 +187,7 @@ The new CLI approach offers a lot more flexibility, details of which are explain
 
 ## Inference
 ### ⚠️ Anomalib < v.0.4.0
+
 Anomalib contains several tools that can be used to perform inference with a trained model. The script in [`tools/inference`](tools/inference.py) contains an example of how the inference tools can be used to generate a prediction for an input image.
 
 If the specified weight path points to a PyTorch Lightning checkpoint file (`.ckpt`), inference will run in PyTorch. If the path points to an ONNX graph (`.onnx`) or OpenVINO IR (`.bin` or `.xml`), inference will run in OpenVINO.
