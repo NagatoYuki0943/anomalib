@@ -15,7 +15,7 @@ from kornia.filters import gaussian_blur2d
 #-----------------------------#
 def load_image(image_path: str) -> np.ndarray:
     image = cv2.imread(image_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)                  # BGR2RGB
     origin_height = image.shape[0]
     origin_width  = image.shape[1]
     return image, origin_height, origin_width
@@ -185,7 +185,7 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
     anomaly_map = anomaly_map.astype(np.uint8)                                  # 变为整数
 
     anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)              # [2711, 5351] -> [2711, 5351, 3]
-    anomaly_map = cv2.cvtColor(anomaly_map, cv2.COLOR_BGR2RGB)
+    anomaly_map = cv2.cvtColor(anomaly_map, cv2.COLOR_RGB2BGR)                  # RGB2BGR
     return anomaly_map
 
 
@@ -265,7 +265,6 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
     transform = get_transform(pred_image_size, pred_image_size)
     image_tensor = transform(image=image)
     image_tensor = image_tensor['image'].unsqueeze(0).to(device)
-    print(image_tensor.sum())   # tensor(-852891.8750, device='cuda:0')
     # 预测得到热力图和概率
     predictions = trace_module(image_tensor)
     anomaly_map, pred_score = predictions

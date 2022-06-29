@@ -495,7 +495,8 @@ python tools/export.py \
     --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
     --image_size 512 \
-    --format torchscript
+    --format torchscript \
+    --cuda True
 
 #------------------------------------------------------------------------------------------#
 
@@ -508,19 +509,22 @@ python tools/export.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt `
     --image_size 512 `
-    --format torchscript
+    --format torchscript `
+    --cuda True
 
 python tools/export.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-768-0.1-n9/some/weights/model.ckpt `
     --image_size 768 `
-    --format torchscript
+    --format torchscript `
+    --cuda True
 
 python tools/export.py `
     --config anomalib/models/patchcore/custom_config.yaml `
     --weight_path results/character-big/patchcore-1024-0.1-n9/some/weights/model.ckpt `
     --image_size 1024 `
-    --format torchscript
+    --format torchscript `
+    --cuda True
 ```
 
 

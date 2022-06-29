@@ -25,6 +25,7 @@ def get_args() -> Namespace:
     parser.add_argument("--image_size", type=int, required=True, help="Image size,randn(1, 3, args.image_size, args.image_size)")
     parser.add_argument("--meta_data", type=Path, required=False, help="Path to JSON file containing the metadata.")
     parser.add_argument("--format", type=str, required=False, help="Onnx or torchscript format")
+    parser.add_argument("--cuda", type=bool, default=False,required=False, help="torchscript export with cuda or cpu")
     args = parser.parse_args()
 
     return args
@@ -115,6 +116,10 @@ def export() -> None:
         #   导出torhscript
         #-----------------------------#
         script_path = "./results/output.torchscript"
+        # 使用cuda导出
+        if args.cuda:
+            model.cuda()
+            input = input.cuda()
         with torch.no_grad():
             trace_module = torch.jit.trace(model, input)
         torch.jit.save(trace_module, script_path)
