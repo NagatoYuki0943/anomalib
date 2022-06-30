@@ -484,6 +484,12 @@ python tools/inference_gradio.py `
 ## Export
 
 > 注意： 导出patchcore时要将`anomalib/models/patchcore/anomaly_map.py` 60行的`gaussian_blur2d`注释掉，训练时再打开，注释掉的部分在使用部分添加上去
+>
+> 导出torchscript时可以选择cuda模式导出，根据网上的说法使用libtorch时调用显卡必须使用cuda导出模型，不过测试显示使用cpu导出的torchscript模型也能使用cuda推理
+>
+> 模型导出会导出模型 `output.onnx / output.torchscript` 和对应的超参数`param.json` 到result文件夹
+>
+> 使用C++推理 https://github.com/NagatoYuki0943/anomalib-libtorch
 
 ```shell
 python tools/export.py \
@@ -526,10 +532,6 @@ python tools/export.py `
     --format torchscript `
     --cuda True
 ```
-
-
-
-
 
 ## Hyperparameter Optimization
 
