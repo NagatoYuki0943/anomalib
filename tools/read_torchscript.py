@@ -255,14 +255,15 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
     # 获取meta_data
     meta_data = get_meta_data(param_dir)
     # 推理时使用的图片大小
-    pred_image_size = meta_data["pred_image_size"]
+    pred_image_height = meta_data["pred_image_height"]
+    pred_image_width = meta_data["pred_image_width"]
     meta_data["image_shape"] = [origin_height, origin_width]
 
     # 读取模型
     trace_module = torch.jit.load(torchscript_path).to(device)
 
     # 图片预处理
-    transform = get_transform(pred_image_size, pred_image_size)
+    transform = get_transform(pred_image_height, pred_image_width)
     image_tensor = transform(image=image)
     image_tensor = image_tensor['image'].unsqueeze(0).to(device)
     # 预测得到热力图和概率
