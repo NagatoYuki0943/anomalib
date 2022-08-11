@@ -489,13 +489,19 @@ python tools/inference_gradio.py `
 >
 > 模型导出会导出模型 `output.onnx / output.torchscript` 和对应的超参数`param.json` 到result文件夹
 >
-> 使用C++推理 https://github.com/NagatoYuki0943/anomalib-libtorch
+> 导出的模型可以使用  `tools/read_onnx.py` `tools/read_torchscript.py` 进行推理
+>
+> 使用C++推理
+>
+> https://github.com/NagatoYuki0943/anomalib-libtorch
+>
+> https://github.com/NagatoYuki0943/anomalib-libtorch-cmake
 
 ```shell
 python tools/export.py \
     --config anomalib/models/patchcore/custom_config.yaml \
     --weight_path results/character-big/patchcore-512-0.1-n9/some/weights/model.ckpt \
-    --image_size_height 512 `
+    --image_size_height 512 \
     --image_size_width 512
 
 python tools/export.py \
