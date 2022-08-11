@@ -22,7 +22,8 @@ def get_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--config", type=Path, required=True, help="Path to a model config file")
     parser.add_argument("--weight_path", type=Path, required=True, help="Path to a model weights")
-    parser.add_argument("--image_size", type=int, required=True, help="Image size,randn(1, 3, args.image_size, args.image_size)")
+    parser.add_argument("--image_size_height", type=int, required=True, help="inference image height")
+    parser.add_argument("--image_size_width", type=int, required=True, help="inference image width")
     parser.add_argument("--meta_data", type=Path, required=False, help="Path to JSON file containing the metadata.")
     parser.add_argument("--format", type=str, required=False, help="Onnx or torchscript format")
     parser.add_argument("--cuda", type=bool, default=False,required=False, help="export torchscript with cuda or cpu")
@@ -67,7 +68,8 @@ def export() -> None:
              "pixel_threshold": pixel_threshold,
              "min": min,
              "max": max,
-             "pred_image_size": args.image_size,
+             "pred_image_height": args.image_size_height,
+             "pred_image_width": args.image_size_width,
              }
     with open("./results/param.json", mode='w', encoding='utf-8') as f:
         json.dump(param, f)
@@ -77,7 +79,7 @@ def export() -> None:
     #   inferencer.model.model和inferencer.model
     #-----------------------------#
     model = inferencer.model.model.eval()
-    input = torch.randn(1, 3, args.image_size, args.image_size)
+    input = torch.randn(1, 3, args.image_size_height, args.image_size_width)
 
     if args.format != 'torchscript':
         #-----------------------------#
