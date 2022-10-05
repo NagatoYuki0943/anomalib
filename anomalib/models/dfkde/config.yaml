@@ -16,6 +16,7 @@ dataset:
 model:
   name: dfkde
   backbone: resnet18
+  pre_trained: true
   max_training_points: 40000
   confidence_threshold: 0.5
   pre_processing: scale
@@ -23,6 +24,8 @@ model:
   threshold_steepness: 0.05
   threshold_offset: 12
   normalization_method: min_max # options: [null, min_max, cdf]
+  layers:
+    - layer4
 
 metrics:
   image:
@@ -32,15 +35,23 @@ metrics:
     image_default: 0
     adaptive: true
 
+visualization:
+  show_images: False # show images on the screen
+  save_images: False # save images to the file system
+  log_images: False # log images to the available loggers (if any)
+  image_save_path: null # path to which images will be saved
+  mode: full # options: ["full", "simple"]
+
 project:
   seed: 42
   path: ./results
 
 logging:
-  log_images_to: [] # Not available for classification-based models.
-  logger: [] # options: [tensorboard, wandb, csv] or combinations.
+  logger: [] # options: [comet, tensorboard, wandb, csv] or combinations.
   log_graph: false # Logs the model graph to respective logger.
 
+optimization:
+  export_mode: null #options: onnx, openvino
 # PL Trainer Args. Don't add extra parameter here.
 trainer:
   accelerator: auto # <"cpu", "gpu", "tpu", "ipu", "hpu", "auto">

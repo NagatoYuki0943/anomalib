@@ -1,18 +1,7 @@
 """DFM: Deep Feature Kernel Density Estimation."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging
 from typing import List, Union
@@ -36,6 +25,7 @@ class Dfm(AnomalyModule):
     Args:
         backbone (str): Backbone CNN network
         layer (str): Layer to extract features from the backbone CNN
+        pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
         pooling_kernel_size (int, optional): Kernel size to pool features extracted from the CNN.
             Defaults to 4.
         pca_level (float, optional): Ratio from which number of components for PCA are calculated.
@@ -48,6 +38,7 @@ class Dfm(AnomalyModule):
         self,
         backbone: str,
         layer: str,
+        pre_trained: bool = True,
         pooling_kernel_size: int = 4,
         pca_level: float = 0.97,
         score_type: str = "fre",
@@ -56,6 +47,7 @@ class Dfm(AnomalyModule):
 
         self.model: DFMModel = DFMModel(
             backbone=backbone,
+            pre_trained=pre_trained,
             layer=layer,
             pooling_kernel_size=pooling_kernel_size,
             n_comps=pca_level,
@@ -126,6 +118,7 @@ class DfmLightning(Dfm):
         super().__init__(
             backbone=hparams.model.backbone,
             layer=hparams.model.layer,
+            pre_trained=hparams.model.pre_trained,
             pooling_kernel_size=hparams.model.pooling_kernel_size,
             pca_level=hparams.model.pca_level,
             score_type=hparams.model.score_type,

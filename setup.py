@@ -1,18 +1,8 @@
 """Setup file for anomalib."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import List
@@ -88,12 +78,11 @@ def get_required_packages(requirement_files: List[str]) -> List[str]:
 
 
 VERSION = get_version()
-LONG_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
+LONG_DESCRIPTION = (Path(__file__).parent / "README.md").read_text(encoding="utf8")
 INSTALL_REQUIRES = get_required_packages(requirement_files=["base"])
 EXTRAS_REQUIRE = {
-    "dev": get_required_packages(requirement_files=["dev", "docs"]),
     "openvino": get_required_packages(requirement_files=["openvino"]),
-    "full": get_required_packages(requirement_files=["dev", "docs", "openvino"]),
+    "full": get_required_packages(requirement_files=["docs", "openvino"]),
 }
 
 
@@ -110,7 +99,7 @@ setup(
     'Licensed under the Apache License, Version 2.0 (the "License")'
     "See LICENSE file for more details.",
     python_requires=">=3.7",
-    packages=find_packages("."),
+    packages=find_packages(exclude=("tests",)),
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS_REQUIRE,
     package_data={"": ["config.yaml"]},

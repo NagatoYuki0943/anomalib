@@ -24,12 +24,13 @@ model:
   init_args:
     input_size: [256, 256]
     backbone: resnet18 # options: [resnet18, wide_resnet50_2, cait_m48_448, deit_base_distilled_patch16_384]
+    pre_trained: true
     flow_steps: 8 # options: [8, 8, 20, 20] - for each supported backbone
     conv3x3_only: True # options: [True, False, False, False] - for each supported backbone
     hidden_ratio: 1.0 # options: [1.0, 1.0, 0.16, 0.16] - for each supported backbone
 
 optimizer:
-  class_path: torch.optim._multi_tensor.Adam
+  class_path: torch.optim._multi_tensor.adam.Adam
   init_args:
     lr: 0.001
     weight_decay: 0.00001
@@ -47,10 +48,10 @@ metrics:
   normalization_method: min_max
 
 visualization:
-  task: segmentation
-  log_images_to:
-    - local
-  inputs_are_normalized: true
+  show_images: False # show images on the screen
+  save_images: False # save images to the file system
+  log_images: False # log images to the available loggers (if any)
+  mode: full # options: ["full", "simple"]
 
 trainer:
   callbacks:

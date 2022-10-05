@@ -1,19 +1,7 @@
 """Benchmark all the algorithms in the repo."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import functools
 import io
@@ -25,21 +13,21 @@ import time
 import warnings
 from argparse import ArgumentParser
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Dict, List, Union, cast
+from typing import Dict, List, Optional, Union, cast
 
 import torch
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import Trainer, seed_everything
-from utils import convert_to_openvino, upload_to_wandb, write_metrics
+from utils import convert_to_openvino, upload_to_comet, upload_to_wandb, write_metrics
 
 from anomalib.config import get_configurable_parameters, update_input_size_config
 from anomalib.data import get_datamodule
 from anomalib.models import get_model
 from anomalib.utils.loggers import configure_logger
 from anomalib.utils.sweep import (
-    get_meta_data,
     get_openvino_throughput,
     get_run_config,
     get_sweep_callbacks,
@@ -119,9 +107,7 @@ def get_single_model_metrics(model_config: Union[DictConfig, ListConfig], openvi
         # get testing time
         testing_time = time.time() - start_time
 
-        meta_data = get_meta_data(model, model_config.model.input_size)
-
-        throughput = get_torch_throughput(model_config, model, datamodule.test_dataloader().dataset, meta_data)
+        throughput = get_torch_throughput(model_config, model, datamodule.test_dataloader().dataset)
 
         # Get OpenVINO metrics
         openvino_throughput = float("nan")
@@ -131,7 +117,7 @@ def get_single_model_metrics(model_config: Union[DictConfig, ListConfig], openvi
             openvino_export_path.mkdir(parents=True, exist_ok=True)
             convert_to_openvino(model, openvino_export_path, model_config.model.input_size)
             openvino_throughput = get_openvino_throughput(
-                model_config, openvino_export_path, datamodule.test_dataloader().dataset, meta_data
+                model_config, openvino_export_path, datamodule.test_dataloader().dataset
             )
 
         # arrange the data
@@ -147,11 +133,11 @@ def get_single_model_metrics(model_config: Union[DictConfig, ListConfig], openvi
     return data
 
 
-def compute_on_cpu(sweep_config: Union[DictConfig, ListConfig]):
+def compute_on_cpu(sweep_config: Union[DictConfig, ListConfig], folder: Optional[str] = None):
     """Compute all run configurations over a sigle CPU."""
     for run_config in get_run_config(sweep_config.grid_search):
         model_metrics = sweep(run_config, 0, sweep_config.seed, False)
-        write_metrics(model_metrics, sweep_config.writer)
+        write_metrics(model_metrics, sweep_config.writer, folder)
 
 
 def compute_on_gpu(
@@ -159,6 +145,7 @@ def compute_on_gpu(
     device: int,
     seed: int,
     writers: List[str],
+    folder: Optional[str] = None,
     compute_openvino: bool = False,
 ):
     """Go over each run config and collect the result.
@@ -168,19 +155,20 @@ def compute_on_gpu(
         device (int): The GPU id used for running the sweep.
         seed (int): Fix a seed.
         writers (List[str]): Destinations to write to.
+        folder (optional, str): Sub-directory to which runs are written to. Defaults to None. If none writes to root.
         compute_openvino (bool, optional): Compute OpenVINO throughput. Defaults to False.
     """
     for run_config in run_configs:
         if isinstance(run_config, (DictConfig, ListConfig)):
             model_metrics = sweep(run_config, device, seed, compute_openvino)
-            write_metrics(model_metrics, writers)
+            write_metrics(model_metrics, writers, folder)
         else:
             raise ValueError(
                 f"Expecting `run_config` of type DictConfig or ListConfig. Got {type(run_config)} instead."
             )
 
 
-def distribute_over_gpus(sweep_config: Union[DictConfig, ListConfig]):
+def distribute_over_gpus(sweep_config: Union[DictConfig, ListConfig], folder: Optional[str] = None):
     """Distribute metric collection over all available GPUs. This is done by splitting the list of configurations."""
     with ProcessPoolExecutor(
         max_workers=torch.cuda.device_count(), mp_context=multiprocessing.get_context("spawn")
@@ -197,6 +185,7 @@ def distribute_over_gpus(sweep_config: Union[DictConfig, ListConfig]):
                     device_id + 1,
                     sweep_config.seed,
                     sweep_config.writer,
+                    folder,
                     sweep_config.compute_openvino,
                 )
             )
@@ -214,24 +203,30 @@ def distribute(config: Union[DictConfig, ListConfig]):
         config: (Union[DictConfig, ListConfig]): Sweep configuration.
     """
 
+    runs_folder = datetime.strftime(datetime.now(), "%Y_%m_%d-%H_%M_%S")
     devices = config.hardware
     if not torch.cuda.is_available() and "gpu" in devices:
         pl_logger.warning("Config requested GPU benchmarking but torch could not detect any cuda enabled devices")
     elif {"cpu", "gpu"}.issubset(devices):
         # Create process for gpu and cpu
         with ProcessPoolExecutor(max_workers=2, mp_context=multiprocessing.get_context("spawn")) as executor:
-            jobs = [executor.submit(compute_on_cpu, config), executor.submit(distribute_over_gpus, config)]
+            jobs = [
+                executor.submit(compute_on_cpu, config, runs_folder),
+                executor.submit(distribute_over_gpus, config, runs_folder),
+            ]
             for job in as_completed(jobs):
                 try:
                     job.result()
                 except Exception as exception:
                     raise Exception(f"Error occurred while computing benchmark on device {job}") from exception
     elif "cpu" in devices:
-        compute_on_cpu(config)
+        compute_on_cpu(config, folder=runs_folder)
     elif "gpu" in devices:
-        distribute_over_gpus(config)
+        distribute_over_gpus(config, folder=runs_folder)
     if "wandb" in config.writer:
-        upload_to_wandb(team="anomalib")
+        upload_to_wandb(team="anomalib", folder=runs_folder)
+    if "comet" in config.writer:
+        upload_to_comet(folder=runs_folder)
 
 
 def sweep(

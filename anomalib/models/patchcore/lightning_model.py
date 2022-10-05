@@ -3,19 +3,8 @@
 Paper https://arxiv.org/abs/2106.08265.
 """
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging
 from typing import List, Tuple, Union
@@ -39,6 +28,7 @@ class Patchcore(AnomalyModule):
         input_size (Tuple[int, int]): Size of the model input.
         backbone (str): Backbone CNN network
         layers (List[str]): Layers to extract features from the backbone CNN
+        pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
         coreset_sampling_ratio (float, optional): Coreset sampling ratio to subsample embedding.    所有embeddings存储起来下采样的倍率，存储为memory_bank
             Defaults to 0.1.
         num_neighbors (int, optional): Number of nearest neighbors. Defaults to 9.
@@ -49,6 +39,7 @@ class Patchcore(AnomalyModule):
         input_size: Tuple[int, int],
         backbone: str,
         layers: List[str],
+        pre_trained: bool = True,
         coreset_sampling_ratio: float = 0.1,
         num_neighbors: int = 9,
     ) -> None:
@@ -57,6 +48,7 @@ class Patchcore(AnomalyModule):
         self.model: PatchcoreModel = PatchcoreModel(
             input_size=input_size,
             backbone=backbone,
+            pre_trained=pre_trained,
             layers=layers,
             num_neighbors=num_neighbors,
         )
@@ -125,7 +117,7 @@ class Patchcore(AnomalyModule):
         # [1, 1, 512, 512]  [1]
         anomaly_maps, anomaly_score = self.model(batch["image"])
         batch["anomaly_maps"] = anomaly_maps
-        batch["pred_scores"] = anomaly_score.unsqueeze(0)
+        batch["pred_scores"] = anomaly_score
 
         return batch
 
@@ -142,8 +134,9 @@ class PatchcoreLightning(Patchcore):
             input_size=hparams.model.input_size,    # 512 512
             backbone=hparams.model.backbone,        # resnet18
             layers=hparams.model.layers,            # layer2 layer3
+            pre_trained=hparams.model.pre_trained,
             coreset_sampling_ratio=hparams.model.coreset_sampling_ratio,    # 0.1
-            num_neighbors=hparams.model.num_neighbors,  # knn 9
+            num_neighbors=hparams.model.num_neighbors,
         )
         self.hparams: Union[DictConfig, ListConfig]  # type: ignore
         self.save_hyperparameters(hparams)

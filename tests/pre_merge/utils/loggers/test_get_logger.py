@@ -1,18 +1,7 @@
 """Tests to ascertain requested logger."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from unittest.mock import patch
 
@@ -24,6 +13,7 @@ from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CSVLogger
 
 from anomalib.utils.loggers import (
+    AnomalibCometLogger,
     AnomalibTensorBoardLogger,
     AnomalibWandbLogger,
     UnknownLogger,
@@ -61,17 +51,23 @@ def test_get_experiment_logger():
         logger = get_experiment_logger(config=config)
         assert isinstance(logger[0], AnomalibWandbLogger)
 
+        # get comet logger
+        config.project.logger = "comet"
+        logger = get_experiment_logger(config=config)
+        assert isinstance(logger[0], AnomalibCometLogger)
+
         # get csv logger.
         config.project.logger = "csv"
         logger = get_experiment_logger(config=config)
         assert isinstance(logger[0], CSVLogger)
 
         # get multiple loggers
-        config.project.logger = ["tensorboard", "wandb", "csv"]
+        config.project.logger = ["tensorboard", "wandb", "csv", "comet"]
         logger = get_experiment_logger(config=config)
         assert isinstance(logger[0], AnomalibTensorBoardLogger)
         assert isinstance(logger[1], AnomalibWandbLogger)
         assert isinstance(logger[2], CSVLogger)
+        assert isinstance(logger[3], AnomalibCometLogger)
 
         # raise unknown
         with pytest.raises(UnknownLogger):

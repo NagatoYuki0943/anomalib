@@ -1,20 +1,10 @@
 """Metrics Configuration Callback."""
 
 # Copyright (C) 2022 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
 
 
+import logging
 from typing import List, Optional
 
 import pytorch_lightning as pl
@@ -24,6 +14,8 @@ from pytorch_lightning.utilities.cli import CALLBACK_REGISTRY
 
 from anomalib.models.components.base.anomaly_module import AnomalyModule
 from anomalib.utils.metrics import metric_collection_from_names
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["MetricsConfigurationCallback"]
 
@@ -35,6 +27,7 @@ class MetricsConfigurationCallback(Callback):
     def __init__(
         self,
         adaptive_threshold: bool,
+        task: str = "segmentation",
         default_image_threshold: Optional[float] = None,
         default_pixel_threshold: Optional[float] = None,
         image_metric_names: Optional[List[str]] = None,
@@ -49,6 +42,7 @@ class MetricsConfigurationCallback(Callback):
         these to the lightning module.
 
         Args:
+            task (str): Task type of the current run.
             adaptive_threshold (bool): Flag indicating whether threshold should be adaptive.
             default_image_threshold (Optional[float]): Default image threshold value.
             default_pixel_threshold (Optional[float]): Default pixel threshold value.
@@ -57,6 +51,7 @@ class MetricsConfigurationCallback(Callback):
             normalization_method(Optional[str]): Normalization method. <None, min_max, cdf>
         """
         # TODO: https://github.com/openvinotoolkit/anomalib/issues/384
+        self.task = task
         self.image_metric_names = image_metric_names
         self.pixel_metric_names = pixel_metric_names
 
@@ -87,7 +82,19 @@ class MetricsConfigurationCallback(Callback):
             stage (Optional[str], optional): fit, validate, test or predict. Defaults to None.
         """
         image_metric_names = [] if self.image_metric_names is None else self.image_metric_names
-        pixel_metric_names = [] if self.pixel_metric_names is None else self.pixel_metric_names
+
+        pixel_metric_names: List[str]
+        if self.pixel_metric_names is None:
+            pixel_metric_names = []
+        elif self.task == "classification":
+            pixel_metric_names = []
+            logger.warning(
+                "Cannot perform pixel-level evaluation when task type is classification. "
+                "Ignoring the following pixel-level metrics: %s",
+                self.pixel_metric_names,
+            )
+        else:
+            pixel_metric_names = self.pixel_metric_names
 
         if isinstance(pl_module, AnomalyModule):
             pl_module.adaptive_threshold = self.adaptive_threshold
