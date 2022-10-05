@@ -1,18 +1,7 @@
 """Tests for Torch and OpenVINO inferencers."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -29,7 +18,7 @@ from anomalib.deploy import OpenVINOInferencer, TorchInferencer, export_convert
 from anomalib.models import get_model
 from anomalib.utils.callbacks import get_callbacks
 from tests.helpers.dataset import TestDataset, get_dataset_path
-from tests.helpers.inference import MockImageLoader, get_meta_data
+from tests.helpers.inference import MockImageLoader
 
 
 def get_model_config(
@@ -48,7 +37,18 @@ def get_model_config(
 class TestInferencers:
     @pytest.mark.parametrize(
         "model_name",
-        ["cflow", "dfm", "dfkde", "fastflow", "ganomaly", "padim", "patchcore", "reverse_distillation", "stfpm"],
+        [
+            "cflow",
+            "dfm",
+            "dfkde",
+            "draem",
+            "fastflow",
+            "ganomaly",
+            "padim",
+            "patchcore",
+            "reverse_distillation",
+            "stfpm",
+        ],
     )
     @TestDataset(num_train=20, num_test=1, path=get_dataset_path(), use_mvtec=False)
     def test_torch_inference(self, model_name: str, category: str = "shapes", path: str = "./datasets/MVTec"):
@@ -74,19 +74,13 @@ class TestInferencers:
             # Test torch inferencer
             torch_inferencer = TorchInferencer(model_config, model)
             torch_dataloader = MockImageLoader(model_config.dataset.image_size, total_count=1)
-            meta_data = get_meta_data(model, model_config.dataset.image_size)
             with torch.no_grad():
                 for image in torch_dataloader():
-                    torch_inferencer.predict(image, superimpose=False, meta_data=meta_data)
+                    torch_inferencer.predict(image)
 
     @pytest.mark.parametrize(
         "model_name",
-        [
-            "dfm",
-            "ganomaly",
-            "padim",
-            "stfpm",
-        ],
+        ["dfm", "draem", "ganomaly", "padim", "patchcore", "stfpm"],
     )
     @TestDataset(num_train=20, num_test=1, path=get_dataset_path(), use_mvtec=False)
     def test_openvino_inference(self, model_name: str, category: str = "shapes", path: str = "./datasets/MVTec"):
@@ -111,13 +105,14 @@ class TestInferencers:
             export_convert(
                 model=model,
                 input_size=model_config.dataset.image_size,
-                onnx_path=export_path / "model.onnx",
                 export_path=export_path,
+                export_mode="openvino",
             )
 
             # Test OpenVINO inferencer
-            openvino_inferencer = OpenVINOInferencer(model_config, export_path / "model.xml")
+            openvino_inferencer = OpenVINOInferencer(
+                model_config, export_path / "openvino/model.xml", export_path / "openvino/meta_data.json"
+            )
             openvino_dataloader = MockImageLoader(model_config.dataset.image_size, total_count=1)
-            meta_data = get_meta_data(model, model_config.dataset.image_size)
             for image in openvino_dataloader():
-                openvino_inferencer.predict(image, superimpose=False, meta_data=meta_data)
+                openvino_inferencer.predict(image)

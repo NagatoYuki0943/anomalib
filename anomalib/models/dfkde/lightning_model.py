@@ -1,18 +1,7 @@
 """DFKDE: Deep Feature Kernel Density Estimation."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging
 from typing import List, Union
@@ -34,6 +23,7 @@ class Dfkde(AnomalyModule):
 
     Args:
         backbone (str): Pre-trained model backbone.
+        pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
         max_training_points (int, optional): Number of training points to fit the KDE model.
             Defaults to 40000.
         pre_processing (str, optional): Preprocess features before passing to KDE.
@@ -46,7 +36,9 @@ class Dfkde(AnomalyModule):
 
     def __init__(
         self,
+        layers: List[str],
         backbone: str,
+        pre_trained: bool = True,
         max_training_points: int = 40000,
         pre_processing: str = "scale",
         n_components: int = 16,
@@ -56,7 +48,9 @@ class Dfkde(AnomalyModule):
         super().__init__()
 
         self.model = DfkdeModel(
+            layers=layers,
             backbone=backbone,
+            pre_trained=pre_trained,
             n_comps=n_components,
             pre_processing=pre_processing,
             filter_count=max_training_points,
@@ -123,7 +117,9 @@ class DfkdeLightning(Dfkde):
 
     def __init__(self, hparams: Union[DictConfig, ListConfig]) -> None:
         super().__init__(
+            layers=hparams.model.layers,
             backbone=hparams.model.backbone,
+            pre_trained=hparams.model.pre_trained,
             max_training_points=hparams.model.max_training_points,
             pre_processing=hparams.model.pre_processing,
             n_components=hparams.model.n_components,

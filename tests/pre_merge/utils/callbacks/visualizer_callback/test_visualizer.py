@@ -1,7 +1,7 @@
 import glob
 import os
 import tempfile
-from unittest import mock
+from pathlib import Path
 
 import pytest
 import pytorch_lightning as pl
@@ -30,7 +30,8 @@ def test_add_images(dataset):
                 "dataset": {"task": dataset},
                 "model": {"threshold": {"image_default": 0.5, "pixel_default": 0.5, "adaptive": True}},
                 "project": {"path": dir_loc},
-                "logging": {"log_images_to": ["tensorboard", "local"]},
+                "logging": {"logger": ["tensorboard"]},
+                "visualization": {"log_images": True, "save_images": True},
                 "metrics": {},
             }
         )
@@ -41,7 +42,7 @@ def test_add_images(dataset):
         )
         trainer.test(model=model, datamodule=DummyDataModule())
         # test if images are logged
-        if len(glob.glob(os.path.join(dir_loc, "images", "*.jpg"))) != 1:
+        if len(list(Path(dir_loc).glob("**/*.png"))) != 1:
             raise Exception("Failed to save to local path")
 
         # test if tensorboard logs are created

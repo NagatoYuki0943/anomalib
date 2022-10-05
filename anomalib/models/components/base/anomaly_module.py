@@ -1,26 +1,17 @@
 """Base Anomaly Module for Training Task."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging
 from abc import ABC
-from typing import Any, List, Optional
+from typing import Any, List, Optional, OrderedDict
+from warnings import warn
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.base import Callback
 from torch import Tensor, nn
+from torchmetrics import Metric
 
 from anomalib.utils.metrics import (
     AdaptiveThreshold,
@@ -52,12 +43,8 @@ class AnomalyModule(pl.LightningModule, ABC):
         self.image_threshold = AdaptiveThreshold().cpu()
         self.pixel_threshold = AdaptiveThreshold().cpu()
 
-        self.training_distribution = AnomalyScoreDistribution().cpu()
-        self.min_max = MinMax().cpu()
+        self.normalization_metrics: Metric
 
-        # Create placeholders for image and pixel metrics.
-        # If set from the config file, MetricsConfigurationCallback will
-        #   create the metric collections upon setup.
         self.image_metrics: AnomalibMetricCollection
         self.pixel_metrics: AnomalibMetricCollection
 
@@ -108,7 +95,7 @@ class AnomalyModule(pl.LightningModule, ABC):
           Dictionary containing images, features, true labels and masks.
           These are required in `validation_epoch_end` for feature concatenation.
         """
-        return self.validation_step(batch, _)
+        return self.predict_step(batch, _)
 
     def validation_step_end(self, val_step_outputs):  # pylint: disable=arguments-differ
         """Called at the end of each validation step."""
@@ -143,6 +130,8 @@ class AnomalyModule(pl.LightningModule, ABC):
         self._log_metrics()
 
     def _compute_adaptive_threshold(self, outputs):
+        self.image_threshold.reset()
+        self.pixel_threshold.reset()
         self._collect_outputs(self.image_threshold, self.pixel_threshold, outputs)
         self.image_threshold.compute()
         if "mask" in outputs[0].keys() and "anomaly_maps" in outputs[0].keys():
@@ -153,23 +142,25 @@ class AnomalyModule(pl.LightningModule, ABC):
         self.image_metrics.set_threshold(self.image_threshold.value.item())
         self.pixel_metrics.set_threshold(self.pixel_threshold.value.item())
 
-    def _collect_outputs(self, image_metric, pixel_metric, outputs):
+    @staticmethod
+    def _collect_outputs(image_metric, pixel_metric, outputs):
         for output in outputs:
             image_metric.cpu()
             image_metric.update(output["pred_scores"], output["label"].int())
             if "mask" in output.keys() and "anomaly_maps" in output.keys():
                 pixel_metric.cpu()
-                pixel_metric.update(output["anomaly_maps"].flatten(), output["mask"].flatten().int())
+                pixel_metric.update(output["anomaly_maps"], output["mask"].int())
 
-    def _post_process(self, outputs):
+    @staticmethod
+    def _post_process(outputs):
         """Compute labels based on model predictions."""
         if "pred_scores" not in outputs and "anomaly_maps" in outputs:
             outputs["pred_scores"] = (
                 outputs["anomaly_maps"].reshape(outputs["anomaly_maps"].shape[0], -1).max(dim=1).values
             )
 
-    def _outputs_to_cpu(self, output):
-        # for output in outputs:
+    @staticmethod
+    def _outputs_to_cpu(output):
         for key, value in output.items():
             if isinstance(value, Tensor):
                 output[key] = value.cpu()
@@ -181,3 +172,21 @@ class AnomalyModule(pl.LightningModule, ABC):
             self.log_dict(self.image_metrics, prog_bar=False)
         else:
             self.log_dict(self.image_metrics, prog_bar=True)
+
+    def _load_normalization_class(self, state_dict: OrderedDict[str, Tensor]):
+        """Assigns the normalization method to use."""
+        if "normalization_metrics.max" in state_dict.keys():
+            self.normalization_metrics = MinMax()
+        elif "normalization_metrics.image_mean" in state_dict.keys():
+            self.normalization_metrics = AnomalyScoreDistribution()
+        else:
+            warn("No known normalization found in model weights.")
+
+    def load_state_dict(self, state_dict: OrderedDict[str, Tensor], strict: bool = True):
+        """Load state dict from checkpoint.
+
+        Ensures that normalization and thresholding attributes is properly setup before model is loaded.
+        """
+        # Used to load missing normalization and threshold parameters
+        self._load_normalization_class(state_dict)
+        return super().load_state_dict(state_dict, strict=strict)

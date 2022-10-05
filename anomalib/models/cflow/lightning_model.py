@@ -3,19 +3,8 @@
 https://arxiv.org/pdf/2107.12571v1.pdf
 """
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import List, Tuple, Union
 
@@ -43,6 +32,7 @@ class Cflow(AnomalyModule):
         input_size: Tuple[int, int],
         backbone: str,
         layers: List[str],
+        pre_trained: bool = True,
         fiber_batch_size: int = 64,
         decoder: str = "freia-cflow",
         condition_vector: int = 128,
@@ -56,6 +46,7 @@ class Cflow(AnomalyModule):
         self.model: CflowModel = CflowModel(
             input_size=input_size,
             backbone=backbone,
+            pre_trained=pre_trained,
             layers=layers,
             fiber_batch_size=fiber_batch_size,
             decoder=decoder,
@@ -194,6 +185,7 @@ class CflowLightning(Cflow):
             input_size=hparams.model.input_size,
             backbone=hparams.model.backbone,
             layers=hparams.model.layers,
+            pre_trained=hparams.model.pre_trained,
             fiber_batch_size=hparams.dataset.fiber_batch_size,
             decoder=hparams.model.decoder,
             condition_vector=hparams.model.condition_vector,

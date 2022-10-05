@@ -6,22 +6,12 @@ If the dataset is not on the file system, the script downloads and
 extracts the dataset and create PyTorch data objects.
 """
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging
 import shutil
+import warnings
 import zipfile
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
@@ -56,7 +46,7 @@ def make_btech_dataset(
     path: Path,
     split: Optional[str] = None,
     split_ratio: float = 0.1,
-    seed: int = 0,
+    seed: Optional[int] = None,
     create_validation_set: bool = False,
 ) -> DataFrame:
     """Create BTech samples by parsing the BTech data file structure.
@@ -152,7 +142,7 @@ class BTechDataset(VisionDataset):
         pre_process: PreProcessor,
         split: str,
         task: str = "segmentation",
-        seed: int = 0,
+        seed: Optional[int] = None,
         create_validation_set: bool = False,
     ) -> None:
         """Btech Dataset class.
@@ -197,6 +187,14 @@ class BTechDataset(VisionDataset):
             (torch.Size([3, 256, 256]), torch.Size([256, 256]))
         """
         super().__init__(root)
+
+        if seed is None:
+            warnings.warn(
+                "seed is None."
+                " When seed is not set, images from the normal directory are split between training and test dir."
+                " This will lead to inconsistency between runs."
+            )
+
         self.root = Path(root) if isinstance(root, str) else root
         self.category: str = category
         self.split = split
@@ -274,7 +272,7 @@ class BTech(LightningDataModule):
         task: str = "segmentation",
         transform_config_train: Optional[Union[str, A.Compose]] = None,
         transform_config_val: Optional[Union[str, A.Compose]] = None,
-        seed: int = 0,
+        seed: Optional[int] = None,
         create_validation_set: bool = False,
     ) -> None:
         """Instantiate BTech Lightning Data Module.
@@ -292,7 +290,7 @@ class BTech(LightningDataModule):
             seed: seed used for the random subset splitting
             create_validation_set: Create a validation subset in addition to the train and test subsets
 
-        Examples
+        Examples:
             >>> from anomalib.data import BTech
             >>> datamodule = BTech(
             ...     root="./datasets/BTech",

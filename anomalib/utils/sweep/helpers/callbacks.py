@@ -1,18 +1,7 @@
 """Get callbacks related to sweep."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 
 from typing import List, Union
@@ -44,11 +33,13 @@ def get_sweep_callbacks(config: Union[ListConfig, DictConfig]) -> List[Callback]
         config.metrics.threshold.pixel_default if "pixel_default" in config.metrics.threshold.keys() else None
     )
     metrics_callback = MetricsConfigurationCallback(
-        config.metrics.threshold.adaptive,
-        image_threshold,
-        pixel_threshold,
-        image_metric_names,
-        pixel_metric_names,
+        adaptive_threshold=config.metrics.threshold.adaptive,
+        task=config.dataset.task,
+        default_image_threshold=image_threshold,
+        default_pixel_threshold=pixel_threshold,
+        image_metric_names=image_metric_names,
+        pixel_metric_names=pixel_metric_names,
+        normalization_method=config.model.normalization_method,
     )
     callbacks.append(metrics_callback)
 

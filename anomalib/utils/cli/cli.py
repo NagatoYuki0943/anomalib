@@ -5,6 +5,7 @@
 
 import logging
 import os
+import warnings
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
@@ -20,13 +21,14 @@ from pytorch_lightning.utilities.cli import (
 
 from anomalib.utils.callbacks import (
     CdfNormalizationCallback,
+    ImageVisualizerCallback,
     LoadModelCallback,
     MetricsConfigurationCallback,
     MinMaxNormalizationCallback,
     ModelCheckpoint,
     TilerConfigurationCallback,
     TimerCallback,
-    VisualizerCallback,
+    add_visualizer_callback,
 )
 from anomalib.utils.loggers import configure_logger
 
@@ -90,7 +92,9 @@ class AnomalibCLI(LightningCLI):
         """
         # TODO: https://github.com/openvinotoolkit/anomalib/issues/19
         # TODO: https://github.com/openvinotoolkit/anomalib/issues/20
-        parser.add_argument("--openvino", type=bool, default=False, help="Export to ONNX and OpenVINO IR format.")
+        parser.add_argument(
+            "--export_mode", type=str, default="", help="Select export mode to ONNX or OpenVINO IR format."
+        )
         parser.add_argument("--nncf", type=str, help="Path to NNCF config to enable quantized training.")
 
         # ADD CUSTOM CALLBACKS TO CONFIG
@@ -107,6 +111,7 @@ class AnomalibCLI(LightningCLI):
         parser.set_defaults(
             {
                 "metrics.adaptive_threshold": True,
+                "metrics.task": "segmentation",
                 "metrics.default_image_threshold": None,
                 "metrics.default_pixel_threshold": None,
                 "metrics.image_metric_names": ["F1Score", "AUROC"],
@@ -115,12 +120,15 @@ class AnomalibCLI(LightningCLI):
             }
         )
 
-        parser.add_lightning_class_args(VisualizerCallback, "visualization")  # type: ignore
+        parser.add_lightning_class_args(ImageVisualizerCallback, "visualization")  # type: ignore
         parser.set_defaults(
             {
+                "visualization.mode": "full",
                 "visualization.task": "segmentation",
-                "visualization.log_images_to": ["local"],
-                "visualization.inputs_are_normalized": True,
+                "visualization.image_save_path": "",
+                "visualization.save_images": False,
+                "visualization.show_images": False,
+                "visualization.log_images": False,
             }
         )
 
@@ -136,7 +144,7 @@ class AnomalibCLI(LightningCLI):
             root_dir = config.trainer.default_root_dir if config.trainer.default_root_dir else "./results"
             model_name = config.model.class_path.split(".")[-1].lower()
             data_name = config.data.class_path.split(".")[-1].lower()
-            category = config.data.init_args.category if config.data.init_args.keys() else ""
+            category = config.data.init_args.category if "category" in config.data.init_args else ""
             time_stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             default_root_dir = os.path.join(root_dir, model_name, data_name, category, time_stamp)
 
@@ -148,6 +156,8 @@ class AnomalibCLI(LightningCLI):
             #   that is two-level up.
             default_root_dir = str(Path(config.trainer.resume_from_checkpoint).parent.parent)
 
+        if config.visualization.image_save_path == "":
+            self.config[subcommand].visualization.image_save_path = default_root_dir + "/images"
         self.config[subcommand].trainer.default_root_dir = default_root_dir
 
     def __set_callbacks(self) -> None:
@@ -204,23 +214,26 @@ class AnomalibCLI(LightningCLI):
                     f"Unknown normalization type {normalization}. \n" "Available types are either None, min_max or cdf"
                 )
 
-        # TODO: https://github.com/openvinotoolkit/anomalib/issues/19
-        if config.openvino and config.nncf:
-            raise ValueError("OpenVINO and NNCF cannot be set simultaneously.")
+        add_visualizer_callback(callbacks, config)
+        self.config[subcommand].visualization = config.visualization
 
         # Export to OpenVINO
-        if config.openvino:
-            from anomalib.utils.callbacks.openvino import (  # pylint: disable=import-outside-toplevel
-                OpenVINOCallback,
+        if config.export_mode is not None:
+            from anomalib.utils.callbacks.export import (  # pylint: disable=import-outside-toplevel
+                ExportCallback,
             )
 
+            logger.info("Setting model export to %s", config.export_mode)
             callbacks.append(
-                OpenVINOCallback(
+                ExportCallback(
                     input_size=config.data.init_args.image_size,
                     dirpath=os.path.join(config.trainer.default_root_dir, "compressed"),
                     filename="model",
+                    export_mode=config.export_mode,
                 )
             )
+        else:
+            warnings.warn(f"Export option: {config.export_mode} not found. Defaulting to no model export")
         if config.nncf:
             if os.path.isfile(config.nncf) and config.nncf.endswith(".yaml"):
                 nncf_module = import_module("anomalib.core.callbacks.nncf_callback")

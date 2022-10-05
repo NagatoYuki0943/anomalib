@@ -5,14 +5,13 @@ import pytorch_lightning as pl
 import torch
 from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
-from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from anomalib.models.components import AnomalyModule
-from anomalib.utils.callbacks.metrics_configuration import MetricsConfigurationCallback
-from anomalib.utils.callbacks.visualizer_callback import VisualizerCallback
+from anomalib.utils.callbacks import ImageVisualizerCallback
 from anomalib.utils.metrics import get_metrics
+from tests.helpers.dataset import get_dataset_path
 
 
 class DummyDataset(Dataset):
@@ -31,8 +30,9 @@ class DummyDataModule(pl.LightningDataModule):
         return DataLoader(DummyDataset())
 
 
-class DummyAnomalyMapGenerator:
+class DummyAnomalyMapGenerator(nn.Module):
     def __init__(self):
+        super().__init__()
         self.input_size = (100, 100)
         self.sigma = 4
 
@@ -50,8 +50,15 @@ class DummyModule(AnomalyModule):
         super().__init__()
         self.model = DummyModel()
         self.task = "segmentation"
+        self.mode = "full"
         self.callbacks = [
-            VisualizerCallback(task=self.task, log_images_to=hparams.logging.log_images_to),
+            ImageVisualizerCallback(
+                task=self.task,
+                mode=self.mode,
+                image_save_path=hparams.project.path + "/images",
+                log_images=True,
+                save_images=True,
+            )
         ]  # test if this is removed
 
         self.image_metrics, self.pixel_metrics = get_metrics(hparams)
@@ -62,11 +69,13 @@ class DummyModule(AnomalyModule):
         """Only used to trigger on_test_epoch_end."""
         self.log(name="loss", value=0.0, prog_bar=True)
         outputs = dict(
-            image_path=[Path("test1.jpg")],
+            image_path=[Path(get_dataset_path("bottle")) / "broken_large/000.png"],
             image=torch.rand((1, 3, 100, 100)),
             mask=torch.zeros((1, 100, 100)),
             anomaly_maps=torch.ones((1, 100, 100)),
             label=torch.Tensor([0]),
+            pred_labels=torch.Tensor([0]),
+            pred_masks=torch.zeros((1, 100, 100)),
         )
         return outputs
 

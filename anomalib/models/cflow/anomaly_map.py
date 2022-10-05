@@ -1,28 +1,17 @@
 """Anomaly Map Generator for CFlow model implementation."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import List, Tuple, Union, cast
 
 import torch
 import torch.nn.functional as F
 from omegaconf import ListConfig
-from torch import Tensor
+from torch import Tensor, nn
 
 
-class AnomalyMapGenerator:
+class AnomalyMapGenerator(nn.Module):
     """Generate Anomaly Heatmap."""
 
     def __init__(
@@ -30,13 +19,12 @@ class AnomalyMapGenerator:
         image_size: Union[ListConfig, Tuple],
         pool_layers: List[str],
     ):
+        super().__init__()
         self.distance = torch.nn.PairwiseDistance(p=2, keepdim=True)
         self.image_size = image_size if isinstance(image_size, tuple) else tuple(image_size)
         self.pool_layers: List[str] = pool_layers
 
-    def compute_anomaly_map(
-        self, distribution: Union[List[Tensor], List[List]], height: List[int], width: List[int]
-    ) -> Tensor:
+    def compute_anomaly_map(self, distribution: List[Tensor], height: List[int], width: List[int]) -> Tensor:
         """Compute the layer map based on likelihood estimation.
 
         Args:
@@ -48,30 +36,29 @@ class AnomalyMapGenerator:
           Final Anomaly Map
 
         """
-
-        test_map: List[Tensor] = []
+        layer_maps: List[Tensor] = []
         for layer_idx in range(len(self.pool_layers)):
-            test_norm = torch.tensor(distribution[layer_idx], dtype=torch.double)  # pylint: disable=not-callable
-            test_norm -= torch.max(test_norm)  # normalize likelihoods to (-Inf:0] by subtracting a constant
-            test_prob = torch.exp(test_norm)  # convert to probs in range [0:1]
-            test_mask = test_prob.reshape(-1, height[layer_idx], width[layer_idx])
+            layer_distribution = distribution[layer_idx].clone().detach()
+            # Normalize the likelihoods to (-Inf:0] and convert to probs in range [0:1]
+            layer_probabilities = torch.exp(layer_distribution - layer_distribution.max())
+            layer_map = layer_probabilities.reshape(-1, height[layer_idx], width[layer_idx])
             # upsample
-            test_map.append(
+            layer_maps.append(
                 F.interpolate(
-                    test_mask.unsqueeze(1), size=self.image_size, mode="bilinear", align_corners=True
-                ).squeeze()
+                    layer_map.unsqueeze(1), size=self.image_size, mode="bilinear", align_corners=True
+                ).squeeze(1)
             )
         # score aggregation
-        score_map = torch.zeros_like(test_map[0])
+        score_map = torch.zeros_like(layer_maps[0])
         for layer_idx in range(len(self.pool_layers)):
-            score_map += test_map[layer_idx]
-        score_mask = score_map
-        # invert probs to anomaly scores
-        anomaly_map = score_mask.max() - score_mask
+            score_map += layer_maps[layer_idx]
+
+        # Invert probs to anomaly scores
+        anomaly_map = score_map.max() - score_map
 
         return anomaly_map
 
-    def __call__(self, **kwargs: Union[List[Tensor], List[int], List[List]]) -> Tensor:
+    def forward(self, **kwargs: Union[List[Tensor], List[int], List[List]]) -> Tensor:
         """Returns anomaly_map.
 
         Expects `distribution`, `height` and 'width' keywords to be passed explicitly

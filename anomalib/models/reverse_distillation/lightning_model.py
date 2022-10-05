@@ -4,18 +4,7 @@ https://arxiv.org/abs/2201.10703v2
 """
 
 # Copyright (C) 2022 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict, List, Tuple, Union
 
@@ -38,6 +27,7 @@ class ReverseDistillation(AnomalyModule):
         input_size (Tuple[int, int]): Size of model input
         backbone (str): Backbone of CNN network
         layers (List[str]): Layers to extract features from the backbone CNN
+        pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
     """
 
     def __init__(
@@ -49,10 +39,15 @@ class ReverseDistillation(AnomalyModule):
         lr: float,
         beta1: float,
         beta2: float,
+        pre_trained: bool = True,
     ):
         super().__init__()
         self.model = ReverseDistillationModel(
-            backbone=backbone, layers=layers, input_size=input_size, anomaly_map_mode=anomaly_map_mode
+            backbone=backbone,
+            pre_trained=pre_trained,
+            layers=layers,
+            input_size=input_size,
+            anomaly_map_mode=anomaly_map_mode,
         )
         self.loss = ReverseDistillationLoss()
         # TODO: LR should be part of optimizer in config.yaml! Since reverse distillation has custom
@@ -126,6 +121,7 @@ class ReverseDistillationLightning(ReverseDistillation):
             input_size=hparams.model.input_size,
             backbone=hparams.model.backbone,
             layers=hparams.model.layers,
+            pre_trained=hparams.model.pre_trained,
             anomaly_map_mode=hparams.model.anomaly_map_mode,
             lr=hparams.model.lr,
             beta1=hparams.model.beta1,

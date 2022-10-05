@@ -1,25 +1,13 @@
 """PyTorch model for the PaDiM model implementation."""
 
-# Copyright (C) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions
-# and limitations under the License.
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from random import sample
 from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
-import torchvision
 from torch import Tensor, nn
 
 from anomalib.models.components import FeatureExtractor, MultiVariateGaussian
@@ -39,6 +27,7 @@ class PadimModel(nn.Module):
         input_size (Tuple[int, int]): Input size for the model.
         layers (List[str]): Layers used for feature extraction
         backbone (str, optional): Pre-trained model backbone. Defaults to "resnet18".
+        pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
     """
 
     def __init__(
@@ -46,13 +35,14 @@ class PadimModel(nn.Module):
         input_size: Tuple[int, int],
         layers: List[str],
         backbone: str = "resnet18",
+        pre_trained: bool = True,
     ):
         super().__init__()
         self.tiler: Optional[Tiler] = None
 
-        self.backbone = getattr(torchvision.models, backbone)
+        self.backbone = backbone
         self.layers = layers
-        self.feature_extractor = FeatureExtractor(backbone=self.backbone(pretrained=True), layers=self.layers)
+        self.feature_extractor = FeatureExtractor(backbone=self.backbone, layers=layers, pre_trained=pre_trained)
         self.dims = DIMS[backbone]
         # pylint: disable=not-callable
         # Since idx is randomly selected, save it with model to get same results
@@ -107,7 +97,6 @@ class PadimModel(nn.Module):
             output = self.anomaly_map_generator(
                 embedding=embeddings, mean=self.gaussian.mean, inv_covariance=self.gaussian.inv_covariance
             )
-
         return output
 
     def generate_embedding(self, features: Dict[str, Tensor]) -> Tensor:
