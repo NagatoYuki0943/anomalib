@@ -179,7 +179,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
-        #print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
+        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
         patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations

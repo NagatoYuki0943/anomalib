@@ -1,9 +1,9 @@
 dataset:
-  name: some
+  name: custom
   format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal      # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal  # name of the folder containing abnormal images.
+  path: ./datasets/images
+  normal_dir: normal        # name of the folder containing normal images.
+  abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
   task: classification      # classification or segmentation
   mask: null                # optional
@@ -51,14 +51,23 @@ metrics:
     pixel_default: 0
     adaptive: true
 
+visualization:
+  show_images: False # show images on the screen
+  save_images: True # save images to the file system
+  log_images: True # log images to the available loggers (if any)
+  image_save_path: null # path to which images will be saved
+  mode: full # options: ["full", "simple"]
+
 project:
   seed: 0
   path: ./results
 
 logging:
-  log_images_to: ["local"] # options: [wandb, tensorboard, local]. Make sure you also set logger with using wandb or tensorboard.
-  logger: ["tensorboard"] # options: [tensorboard, wandb, csv] or combinations.
+  logger: [tensorboard] # options: [comet, tensorboard, wandb, csv] or combinations.
   log_graph: false # Logs the model graph to respective logger.
+
+optimization:
+  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:

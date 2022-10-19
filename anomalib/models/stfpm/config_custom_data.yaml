@@ -1,7 +1,7 @@
 dataset:
-  name: some
+  name: custom
   format: folder
-  path: ./datasets/image
+  path: ./datasets/images
   normal_dir: normal        # name of the folder containing normal images.
   abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
@@ -9,10 +9,11 @@ dataset:
   mask: null                # optional
   extensions: null
   split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
-  image_size: 224
+  image_size: 256
   train_batch_size: 32
-  test_batch_size: 1
-  num_workers: 8
+  test_batch_size: 32
+  inference_batch_size: 32
+  num_workers: 36
   transform_config:
     train: null
     val: null
@@ -26,14 +27,19 @@ dataset:
     random_tile_count: 16
 
 model:
-  name: patchcore
+  name: stfpm
   backbone: resnet18
   layers:
+    - layer1
     - layer2
     - layer3
-  coreset_sampling_ratio: 0.1  # 0.1 -> 0.05
-  num_neighbors: 9 # 9 -> 15
-  # weight_file: weights/model.ckpt
+  lr: 0.4
+  momentum: 0.9
+  weight_decay: 0.0001
+  early_stopping:
+    patience: 3
+    metric: image_AUROC # image_F1Score or image_AUROC
+    mode: max
   normalization_method: min_max # options: [null, min_max, cdf]
 
 metrics:
@@ -61,10 +67,10 @@ project:
 
 logging:
   logger: [tensorboard] # options: [comet, tensorboard, wandb, csv] or combinations.
-  log_graph: false # Logs the model graph to respective logger.
+  log_graph: true # Logs the model graph to respective logger.
 
 optimization:
-  export_mode: openvino # options: onnx, openvino
+  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:
@@ -75,7 +81,7 @@ trainer:
   auto_scale_batch_size: false
   auto_select_gpus: false
   benchmark: false
-  check_val_every_n_epoch: 1 # Don't validate before extracting features.
+  check_val_every_n_epoch: 1
   default_root_dir: null
   detect_anomaly: false
   deterministic: false
@@ -93,7 +99,7 @@ trainer:
   limit_val_batches: 1.0
   log_every_n_steps: 50
   log_gpu_memory: null
-  max_epochs: 1
+  max_epochs: 100
   max_steps: -1
   max_time: null
   min_epochs: null
@@ -113,4 +119,4 @@ trainer:
   sync_batchnorm: false
   tpu_cores: null
   track_grad_norm: -1
-  val_check_interval: 1.0 # Don't validate before extracting features.
+  val_check_interval: 1.0

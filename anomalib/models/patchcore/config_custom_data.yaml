@@ -1,19 +1,18 @@
 dataset:
-  name: some
+  name: custom
   format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal      # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal  # name of the folder containing abnormal images.
+  path: ./datasets/images
+  normal_dir: normal        # name of the folder containing normal images.
+  abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
   task: classification      # classification or segmentation
   mask: null                # optional
   extensions: null
   split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
-  image_size: 256
-  train_batch_size: 32
-  test_batch_size: 32
-  inference_batch_size: 32
-  num_workers: 36
+  image_size: 224
+  train_batch_size: 1
+  test_batch_size: 1
+  num_workers: 0
   transform_config:
     train: null
     val: null
@@ -27,19 +26,14 @@ dataset:
     random_tile_count: 16
 
 model:
-  name: stfpm
-  backbone: resnet18
+  name: patchcore
+  backbone: resnet18  # wide_resnet50_2 resnet18
   layers:
-    - layer1
     - layer2
     - layer3
-  lr: 0.4
-  momentum: 0.9
-  weight_decay: 0.0001
-  early_stopping:
-    patience: 3
-    metric: image_AUROC # image_F1Score or image_AUROC
-    mode: max
+  coreset_sampling_ratio: 0.1  # 0.1 -> 0.05
+  num_neighbors: 9 # 9 -> 15
+  # weight_file: weights/model.ckpt
   normalization_method: min_max # options: [null, min_max, cdf]
 
 metrics:
@@ -54,18 +48,23 @@ metrics:
     pixel_default: 0
     adaptive: true
 
+visualization:
+  show_images: False # show images on the screen
+  save_images: True # save images to the file system
+  log_images: True # log images to the available loggers (if any)
+  image_save_path: null # path to which images will be saved
+  mode: full # options: ["full", "simple"]
+
 project:
   seed: 0
   path: ./results
 
 logging:
-  log_images_to: ["local"] # options: [wandb, tensorboard, local]. Make sure you also set logger with using wandb or tensorboard.
-  logger: ["tensorboard"] # options: [tensorboard, wandb, csv] or combinations.
-  log_graph: false # Logs the model graph to respective logger.
+  logger: [tensorboard] # options: [comet, tensorboard, wandb, csv] or combinations.
+  log_graph: true # Logs the model graph to respective logger.
 
 optimization:
-  openvino:
-    apply: false
+  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:
@@ -76,7 +75,7 @@ trainer:
   auto_scale_batch_size: false
   auto_select_gpus: false
   benchmark: false
-  check_val_every_n_epoch: 1
+  check_val_every_n_epoch: 1 # Don't validate before extracting features.
   default_root_dir: null
   detect_anomaly: false
   deterministic: false
@@ -94,7 +93,7 @@ trainer:
   limit_val_batches: 1.0
   log_every_n_steps: 50
   log_gpu_memory: null
-  max_epochs: 100
+  max_epochs: 1
   max_steps: -1
   max_time: null
   min_epochs: null
@@ -114,4 +113,4 @@ trainer:
   sync_batchnorm: false
   tpu_cores: null
   track_grad_norm: -1
-  val_check_interval: 1.0
+  val_check_interval: 1.0 # Don't validate before extracting features.
