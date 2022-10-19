@@ -1,15 +1,18 @@
 """Expoet onnx model
 modified from inference.py
+
+不清楚在最新版本是否可用,建议在训练的配置中加入如下配置,选择onnx会导出onnx,torchscript, 选择openvino会导出3者
+optimization:
+  export_mode: openvino # options: onnx, openvino
 """
 
 
 import torch
 import onnx
 from argparse import ArgumentParser, Namespace
-from importlib import import_module
 from pathlib import Path
 from anomalib.config import get_configurable_parameters
-from anomalib.deploy.inferencers.base import Inferencer
+from anomalib.deploy.inferencers import TorchInferencer
 import json
 
 
@@ -25,7 +28,6 @@ def get_args() -> Namespace:
     parser.add_argument("--image_size_height", type=int, required=True, help="inference image height")
     parser.add_argument("--image_size_width", type=int, required=True, help="inference image width")
     parser.add_argument("--meta_data", type=Path, required=False, help="Path to JSON file containing the metadata.")
-    parser.add_argument("--format", type=str, required=False, help="Onnx or torchscript format")
     parser.add_argument("--cuda", type=bool, default=False,required=False, help="export torchscript with cuda or cpu")
     args = parser.parse_args()
 
@@ -40,10 +42,8 @@ def export() -> None:
 
     # Get the inferencer. We use .ckpt extension for Torch models and (onnx, bin) for the openvino models.
     extension = args.weight_path.suffix
-    inferencer: Inferencer
+    inferencer: TorchInferencer
     if extension in (".ckpt"):
-        module = import_module("anomalib.deploy.inferencers.torch")
-        TorchInferencer = getattr(module, "TorchInferencer")    # pylint: disable=invalid-name
         inferencer = TorchInferencer(config=config, model_source=args.weight_path, meta_data_path=args.meta_data)
 
     # print('*'*100)
@@ -71,7 +71,7 @@ def export() -> None:
              "pred_image_height": args.image_size_height,
              "pred_image_width": args.image_size_width,
              }
-    with open("./results/param.json", mode='w', encoding='utf-8') as f:
+    with open("./results/meta_data.json", mode='w', encoding='utf-8') as f:
         json.dump(param, f)
 
     #-----------------------------#
@@ -79,57 +79,51 @@ def export() -> None:
     #   inferencer.model.model和inferencer.model
     #-----------------------------#
     model = inferencer.model.model.eval()
-    input = torch.randn(1, 3, args.image_size_height, args.image_size_width)
+    x = torch.zeros(1, 3, args.image_size_height, args.image_size_width)
 
-    if args.format != 'torchscript':
-        #-----------------------------#
-        #   导出onnx
-        #   pytorch1.11不支持导出cdist为onnx，不过github上的实现了，
-        #   复制github/torch/onnx/symboloc_opset9.py中对应代码到torch/onnx/symboloc_opset11.py,之所以用11是因为F.interpolate在11中才实现
-        #-----------------------------#
-        onnx_path = "./results/output.onnx"
-        # model = model.model
-        torch.onnx.export(model,                    # 保存的模型
-                        input,                      # 模型输入
-                        onnx_path,                  # 模型保存 (can be a file or file-like object)
-                        export_params=True,         # 如果指定为True或默认, 参数也会被导出. 如果你要导出一个没训练过的就设为 False.
-                        verbose=False,              # 如果为True，则打印一些转换日志，并且onnx模型中会包含doc_string信息
-                        opset_version=11,           # ONNX version 值必须等于_onnx_main_opset或在_onnx_stable_opsets之内。具体可在torch/onnx/symbolic_helper.py中找到
-                        do_constant_folding=True,   # 是否使用“常量折叠”优化。常量折叠将使用一些算好的常量来优化一些输入全为常量的节点。
-                        input_names=["input"],      # 按顺序分配给onnx图的输入节点的名称列表
-                        output_names=["output"],    # 按顺序分配给onnx图的输出节点的名称列表
-                        )
+    #-----------------------------#
+    #   导出onnx
+    #-----------------------------#
+    onnx_path = "./results/output.onnx"
+    # model = model.model
+    torch.onnx.export(model,                    # 保存的模型
+                    x,                      # 模型输入
+                    onnx_path,                  # 模型保存 (can be a file or file-like object)
+                    export_params=True,         # 如果指定为True或默认, 参数也会被导出. 如果你要导出一个没训练过的就设为 False.
+                    verbose=False,              # 如果为True，则打印一些转换日志，并且onnx模型中会包含doc_string信息
+                    opset_version=11,           # ONNX version 值必须等于_onnx_main_opset或在_onnx_stable_opsets之内。具体可在torch/onnx/symbolic_helper.py中找到
+                    do_constant_folding=True,   # 是否使用“常量折叠”优化。常量折叠将使用一些算好的常量来优化一些输入全为常量的节点。
+                    input_names=["input"],      # 按顺序分配给onnx图的输入节点的名称列表
+                    output_names=["output"],    # 按顺序分配给onnx图的输出节点的名称列表
+                    )
 
-        #-----------------------------#
-        #   onnx部分
-        #-----------------------------#
-        # 载入onnx模块
-        model_ = onnx.load(onnx_path)
-        # print(model_)
-        # 检查IR是否良好
-        try:
-            onnx.checker.check_model(model_)
-        except Exception:
-            print("Model incorrect")
-        else:
-            print("Model correct")
+    #-----------------------------#
+    #   onnx部分
+    #-----------------------------#
+    # 载入onnx模块
+    model_ = onnx.load(onnx_path)
+    # print(model_)
+    # 检查IR是否良好
+    try:
+        onnx.checker.check_model(model_)
+    except Exception:
+        print("Model incorrect")
     else:
-        #-----------------------------#
-        #   导出torhscript
-        #-----------------------------#
-        script_path = "./results/output.torchscript"
-        # 使用cuda导出
-        if args.cuda:
-            print("export torchscript with cuda!")
-            model.cuda()
-            input = input.cuda()
-            script_path = "./results/output_cuda.torchscript"
-        with torch.no_grad():
-            trace_module = torch.jit.trace(model, input)
-        torch.jit.save(trace_module, script_path)
+        print("Model correct")
 
-        trace_module1 = torch.jit.load(script_path)
-        print(trace_module1(input)[0].size())           # [1, 1, 512, 512]
+
+    #-----------------------------#
+    #   导出torhscript
+    #-----------------------------#
+    script_path = "./results/model_cpu.torchscript"
+    ts = torch.jit.script(model.model.cpu(), example_inputs=x)
+    torch.jit.save(ts, script_path)
+    # cuda
+    script_path = "./results/model_gpu.torchscript"
+    ts = torch.jit.script(model.model.cuda(), example_inputs=x.cuda())
+    torch.jit.save(ts, script_path)
+    print("export torchscript success!")
+
 
 if __name__ == "__main__":
     export()

@@ -3,4 +3,6 @@ requests==2.26.0
 networkx~=2.5
 nncf==2.1.0
 onnx==1.10.1
+onnxruntime-gpu==1.10   # Compatible with numpy version used by openvino-dev
+onnxsim
 openvino-dev==2022.1.0

@@ -12,6 +12,8 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.types import Number
+import onnx
+from onnxsim import simplify
 
 from anomalib.models.components import AnomalyModule
 
@@ -49,8 +51,8 @@ def export_convert(
     export_mode: str,
     export_path: Optional[Union[str, Path]] = None,
 ):
-    """Export the model to onnx format and convert to OpenVINO IR.
-
+    """Export the model to onnx format, torchscript format and convert to OpenVINO IR.
+        torchscript format will export with onnx format.
     Args:
         model (AnomalyModule): Model to convert.
         input_size (Union[List[int], Tuple[int, int]]): Image size used as the input for onnx converter.
@@ -58,23 +60,65 @@ def export_convert(
         export_mode (str): Mode to export onnx or openvino
     """
     height, width = input_size
+    # 输入的图片
+    x = torch.zeros((1, 3, height, width))
+
+
+    #-----------------------------------------------------------
+    # torchscript 使用 torch.jit.script, 因为模型forward中有判断
+    # cpu
+    script_path = os.path.join(str(export_path), "model_cpu.torchscript")
+    ts = torch.jit.script(model.model.cpu(), example_inputs=[x])
+    torch.jit.save(ts, script_path)
+    # cuda
+    script_path = os.path.join(str(export_path), "model_gpu.torchscript")
+    ts = torch.jit.script(model.model.cuda(), example_inputs=[x.cuda()])
+    torch.jit.save(ts, script_path)
+    print("export torchscript success!")
+
+
+    #-----------------------------------------------------------
+    # onnx
     onnx_path = os.path.join(str(export_path), "model.onnx")
     torch.onnx.export(
         model.model,
-        torch.zeros((1, 3, height, width)).to(model.device),
+        x.to(model.device),
         onnx_path,
         opset_version=11,
         input_names=["input"],
         output_names=["output"],
     )
+    model_ = onnx.load(onnx_path)
+    # 简化模型,更好看
+    model_simp, check = simplify(model_)
+    assert check, "Simplified ONNX model could not be validated"
+    onnx.save(model_simp, onnx_path)
+    print("export onnx success!")
+
+
+    #-----------------------------------------------------------
+    # save meta_data.json for any format. copy from below
+    with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
+        meta_data = get_model_metadata(model)
+        # Convert metadata from torch
+        for key, value in meta_data.items():
+            if isinstance(value, Tensor):
+                meta_data[key] = value.numpy().tolist()
+        json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)
+
+
+    #-----------------------------------------------------------
+    # openvino
     if export_mode == "openvino":
         export_path = os.path.join(str(export_path), "openvino")
         optimize_command = "mo --input_model " + str(onnx_path) + " --output_dir " + str(export_path)
         assert os.system(optimize_command) == 0, "OpenVINO conversion failed"
+        print("export openvino success!")
+
         with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
-            meta_data = get_model_metadata(model)
-            # Convert metadata from torch
-            for key, value in meta_data.items():
-                if isinstance(value, Tensor):
-                    meta_data[key] = value.numpy().tolist()
+            # meta_data = get_model_metadata(model)
+            # # Convert metadata from torch
+            # for key, value in meta_data.items():
+            #     if isinstance(value, Tensor):
+            #         meta_data[key] = value.numpy().tolist()
             json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)

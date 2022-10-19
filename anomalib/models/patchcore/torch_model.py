@@ -114,7 +114,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         return output
 
     def generate_embedding(self, features: Dict[str, Tensor]) -> Tensor:
-        """ 将backbone的多层输入在通道上拼接
+        """ 将backbone的多层输入在通道上拼接,下层向上上采样
             Generate embedding from hierarchical feature map.
 
         Args:
@@ -125,12 +125,12 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Embedding vector
         """
 
-        embeddings = features[self.layers[0]]   # 第一层
-        for layer in self.layers[1:]:           # 后面的层
+        embeddings = features[self.layers[0]]   # layer2 [1, 128, 28, 28]
+        for layer in self.layers[1:]:           # layer3 [1, 256, 14, 14]
             layer_embedding = features[layer]
             layer_embedding = F.interpolate(layer_embedding, size=embeddings.shape[-2:], mode="nearest")
             embeddings = torch.cat((embeddings, layer_embedding), 1)
-        # print("embeddings:", embeddings.size()) # [1, 384, 64, 64]
+        # print("embeddings:", embeddings.size()) # [1, 384, 28, 28]
         return embeddings
 
     @staticmethod
@@ -179,7 +179,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
-        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [4096, 384] [13107, 384] 384代表每个点的维度(layer2和layer3拼接为384）
+        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
         patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations
