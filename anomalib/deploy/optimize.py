@@ -63,16 +63,19 @@ def export_convert(
     # 输入的图片
     x = torch.zeros((1, 3, height, width))
 
+    # 设置eval模式 important!!!
+    model.eval()
+
 
     #-----------------------------------------------------------
     # torchscript 使用 torch.jit.script, 因为模型forward中有判断
     # cpu
     script_path = os.path.join(str(export_path), "model_cpu.torchscript")
-    ts = torch.jit.script(model.model.cpu(), example_inputs=[x])
+    ts = torch.jit.trace(model.model.cpu(), example_inputs=x)
     torch.jit.save(ts, script_path)
     # cuda
     script_path = os.path.join(str(export_path), "model_gpu.torchscript")
-    ts = torch.jit.script(model.model.cuda(), example_inputs=[x.cuda()])
+    ts = torch.jit.trace(model.model.cuda(), example_inputs=x.cuda())
     torch.jit.save(ts, script_path)
     print("export torchscript success!")
 

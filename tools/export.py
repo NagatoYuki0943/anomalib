@@ -61,6 +61,7 @@ def export() -> None:
     # print(inferencer.model.model.memory_bank.size())          # torch.Size([13107, 384])
     # print('*'*100)
 
+
     #-----------------------------#
     #   保存参数
     #-----------------------------#
@@ -74,12 +75,27 @@ def export() -> None:
     with open("./results/meta_data.json", mode='w', encoding='utf-8') as f:
         json.dump(param, f)
 
+    return
     #-----------------------------#
     #   取出PatchcoreLightning
     #   inferencer.model.model和inferencer.model
     #-----------------------------#
-    model = inferencer.model.model.eval()
+    inferencer.model.eval()
+    model = inferencer.model.model
     x = torch.zeros(1, 3, args.image_size_height, args.image_size_width)
+
+    #-----------------------------#
+    #   导出torhscript
+    #-----------------------------#
+    script_path = "./results/model_cpu.torchscript"
+    ts = torch.jit.trace(model.model.cpu(), example_inputs=x)
+    torch.jit.save(ts, script_path)
+    # cuda
+    script_path = "./results/model_gpu.torchscript"
+    ts = torch.jit.trace(model.model.cuda(), example_inputs=x.cuda())
+    torch.jit.save(ts, script_path)
+    print("export torchscript success!")
+
 
     #-----------------------------#
     #   导出onnx
@@ -87,7 +103,7 @@ def export() -> None:
     onnx_path = "./results/output.onnx"
     # model = model.model
     torch.onnx.export(model,                    # 保存的模型
-                    x,                      # 模型输入
+                    x,                          # 模型输入
                     onnx_path,                  # 模型保存 (can be a file or file-like object)
                     export_params=True,         # 如果指定为True或默认, 参数也会被导出. 如果你要导出一个没训练过的就设为 False.
                     verbose=False,              # 如果为True，则打印一些转换日志，并且onnx模型中会包含doc_string信息
@@ -110,19 +126,6 @@ def export() -> None:
         print("Model incorrect")
     else:
         print("Model correct")
-
-
-    #-----------------------------#
-    #   导出torhscript
-    #-----------------------------#
-    script_path = "./results/model_cpu.torchscript"
-    ts = torch.jit.script(model.model.cpu(), example_inputs=x)
-    torch.jit.save(ts, script_path)
-    # cuda
-    script_path = "./results/model_gpu.torchscript"
-    ts = torch.jit.script(model.model.cuda(), example_inputs=x.cuda())
-    torch.jit.save(ts, script_path)
-    print("export torchscript success!")
 
 
 if __name__ == "__main__":
