@@ -7,11 +7,10 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from typing import Union, Dict, Tuple, Optional
 from omegaconf import DictConfig
-from kornia.filters import gaussian_blur2d
 
 
 #-----------------------------#
-# 打开图片
+#   打开图片
 #-----------------------------#
 def load_image(image_path: str) -> np.ndarray:
     image = cv2.imread(image_path)
@@ -22,7 +21,7 @@ def load_image(image_path: str) -> np.ndarray:
 
 
 #-----------------------------#
-# 图片预处理
+#   图片预处理
 #-----------------------------#
 def get_transform(height, width):
     return A.Compose(
@@ -35,7 +34,7 @@ def get_transform(height, width):
 
 
 #-----------------------------#
-# 获取meta_data
+#   获取meta_data
 #-----------------------------#
 def get_meta_data(jsonpath):
     """获取 image_threshold, pixel_threshold, min, max
@@ -48,12 +47,13 @@ def get_meta_data(jsonpath):
     """
     with open(jsonpath, mode='r', encoding='utf-8') as f:
         meta_data = json.load(f)
-    print(meta_data)
+    # print(meta_data)
     return meta_data
 
 
 #-----------------------------#
-# 分别标准化热力图和得分
+#   分别标准化热力图和得分
+#   anomalib.post_processing.normalization.min_max.normalize
 #-----------------------------#
 def normalize_min_max(
     targets: Union[np.ndarray, Tensor, np.float32],
@@ -63,7 +63,7 @@ def normalize_min_max(
 ) -> Union[np.ndarray, Tensor]:
     """Apply min-max normalization and shift the values such that the threshold value is centered at 0.5."""
     normalized = ((targets - threshold) / (max_val - min_val)) + 0.5
-    if isinstance(targets, (np.ndarray, np.float32)):
+    if isinstance(targets, (np.ndarray, np.float32, np.float64)):
         normalized = np.minimum(normalized, 1)
         normalized = np.maximum(normalized, 0)
     elif isinstance(targets, Tensor):
@@ -74,8 +74,9 @@ def normalize_min_max(
     return normalized
 
 
+
 #-----------------------------#
-# 标准化热力图和得分
+#   标准化热力图和得分
 #-----------------------------#
 def normalize(
     anomaly_maps: Union[Tensor, np.ndarray],
@@ -109,13 +110,13 @@ def normalize(
 
 
 #-----------------------------#
-# 预测结果后处理，包括归一化，所放到原图尺寸
+#   预测结果后处理，包括归一化，所放到原图尺寸
 #-----------------------------#
 def post_process(
-    predictions: Tensor, meta_data: Optional[Union[Dict, DictConfig]] = None
+    anomaly_map: Tensor, pred_score: Tensor, meta_data: Optional[Union[Dict, DictConfig]] = None
 ) -> Tuple[np.ndarray, float]:
     """Post process the output predictions.
-
+        这里返回的结果和inference的图像结果有些许不同,小数点后几位不同,不过得分相同
     Args:
         predictions (Tensor): Raw output predicted by the model.
         meta_data (Dict, optional): Meta data. Post-processing step sometimes requires
@@ -123,26 +124,9 @@ def post_process(
             Defaults to None.
 
     Returns:
-        np.ndarray: Post processed predictions that are ready to be visualized.
-    这里返回的结果和inference的图像结果有些许不同，小数点后几位不同，不过得分相同
+        tuple(np.ndarray, float):还原到原图尺寸的热力图和得分
     """
-
-    if isinstance(predictions, Tensor):
-        anomaly_map = predictions
-        pred_score = anomaly_map.reshape(-1).max()
-    else:
-        # NOTE: Patchcore `forward`` returns heatmap and score.
-        #   We need to add the following check to ensure the variables
-        #   are properly assigned. Without this check, the code
-        #   throws an error regarding type mismatch torch vs np.
-        if isinstance(predictions[1], (Tensor)):
-            anomaly_map, pred_score = predictions   # torch.Size([1, 1, 512, 512])
-            pred_score = pred_score.detach()        # tensor(1.0392)
-        else:
-            anomaly_map, pred_score = predictions
-            pred_score = pred_score.detach().numpy()
-
-    anomaly_map = anomaly_map.squeeze()             # torch.Size([1, 1, 512, 512]) -> torch.Size([512, 512])
+    anomaly_map = anomaly_map.squeeze()             # [1, 1, 224, 224] -> [224, 224]
 
     #------------------------------#
     #   标准化
@@ -165,7 +149,7 @@ def post_process(
 
 
 #-----------------------------#
-# 单通道热力图转换为rgb
+#   单通道热力图转换为rgb
 #-----------------------------#
 def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) -> np.ndarray:
     """ 单通道热力图转换为rgb
@@ -190,7 +174,7 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
 
 
 #-----------------------------#
-# 将热力图和原图叠加
+#   将热力图和原图叠加
 #-----------------------------#
 def superimpose_anomaly_map(
     anomaly_map: np.ndarray, image: np.ndarray, alpha: float = 0.4, gamma: int = 0, normalize: bool = False
@@ -199,8 +183,8 @@ def superimpose_anomaly_map(
         Superimpose anomaly map on top of in the input image.
 
     Args:
-        anomaly_map (np.ndarray): Anomaly map       热力图  [2711, 5351]
-        image (np.ndarray): Input image             原图    [2711, 5351]
+        anomaly_map (np.ndarray): Anomaly map       热力图  [900, 900]
+        image (np.ndarray): Input image             原图    [900, 900]
         alpha (float, optional): Weight to overlay anomaly map
             on the input image. Defaults to 0.4.
         gamma (int, optional): Value to add to the blended image
@@ -214,7 +198,7 @@ def superimpose_anomaly_map(
         np.ndarray: Image with anomaly map superimposed on top of it.
     """
 
-    # 单通道热力图转换为rgb [2711, 5351] -> [2711, 5351, 3]
+    # 单通道热力图转换为rgb [900, 900] -> [900, 900, 3]
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
     # 叠加图片
     superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)
@@ -222,7 +206,7 @@ def superimpose_anomaly_map(
 
 
 #-----------------------------#
-# 给图片添加概率
+#   给图片添加概率
 #-----------------------------#
 def add_label(prediction: np.ndarray, scores: float, font: int = cv2.FONT_HERSHEY_PLAIN) -> np.ndarray:
     """If the model outputs score, it adds the score to the output image.
@@ -245,57 +229,51 @@ def add_label(prediction: np.ndarray, scores: float, font: int = cv2.FONT_HERSHE
 
 
 #-----------------------------#
-# 预测函数
+#   预测函数
 #-----------------------------#
-def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir: str) -> None:
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir: str, use_cuda: bool=False) -> None:
 
-    # 打开图片
+    # 1.打开图片
     image, origin_height, origin_width = load_image(image_path)
-    # 获取meta_data
+    # 2.获取meta_data
     meta_data = get_meta_data(param_dir)
     # 推理时使用的图片大小
-    pred_image_height = meta_data["pred_image_height"]
-    pred_image_width = meta_data["pred_image_width"]
+    pred_image_height, pred_image_width = meta_data["img_size"]
     meta_data["image_shape"] = [origin_height, origin_width]
 
-    # 读取模型
-    trace_module = torch.jit.load(torchscript_path).to(device)
+    # 3.读取模型
+    trace_model = torch.jit.load(torchscript_path)
 
-    # 图片预处理
+    # 4.图片预处理
     transform = get_transform(pred_image_height, pred_image_width)
     image_tensor = transform(image=image)
-    image_tensor = image_tensor['image'].unsqueeze(0).to(device)
-    # 预测得到热力图和概率
-    predictions = trace_module(image_tensor)
-    anomaly_map, pred_score = predictions
+    image_tensor = image_tensor['image'].unsqueeze(0)
+    if use_cuda:
+        image_tensor = image_tensor.cuda()
 
-    # 将模型中的高斯滤波放到外面，它会调用cuda，在模型中使用cuda它没法移动到cuda上，会报错，所以放到这里
-    sigma = 4
-    kernel_size = 2 * int(4.0 * sigma + 0.5) + 1   # kernel_size=33
-    anomaly_map = gaussian_blur2d(anomaly_map, (kernel_size, kernel_size), sigma=(sigma, sigma))
+    # 5.预测得到热力图和概率
+    anomaly_map, pred_score = trace_model(image_tensor)
 
-    # 预测结果后处理，包括归一化热力图和概率，所放到原图尺寸
-    anomaly_map, pred_score = post_process((anomaly_map, pred_score), meta_data)
-    # print(anomaly_map)
-    print("pred_score", pred_score)                      # 0.6027931678867513
+    # 6.预测结果后处理，包括归一化热力图和概率，所放到原图尺寸
+    anomaly_map, pred_score = post_process(anomaly_map, pred_score, meta_data)
+    # print(anomaly_map.shape)            # (900, 900)
+    print("pred_score:", pred_score)    # 0.8933535814285278
 
-    # 混合原图
+    # 7.混合原图
     superimposed_map = superimpose_anomaly_map(anomaly_map, image)
-    # print(superimposed_map.shape)                      # (2711, 5351, 3)
-    # print(superimposed_map)
+    # print(superimposed_map.shape)                      # (900, 900, 3)
 
-    # 添加标签
+    # 8.添加标签
     output = add_label(superimposed_map, pred_score)
     output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
 
-    # 写入图片
+    # 9.写入图片
     cv2.imwrite(filename=save_img_dir, img=output)
 
 
 if __name__ == "__main__":
-    image_path       = "./datasets/some/1.abnormal/OriginImage_20220526_113206_Cam1_6_crop.jpg"
-    torchscript_path = "./results/export/512-0.1/output.torchscript"
-    param_dir        = "./results/export/512-0.1/param.json"
-    save_img_dir     = "./results/export/512-0.1/output.jpg"
-    predict(image_path, torchscript_path, param_dir, save_img_dir)
+    image_path       = "./datasets/MVTec/bottle/test/broken_large/000.png"
+    torchscript_path = "./results/patchcore/mvtec/bottle-cls/model_gpu.torchscript"
+    param_dir        = "./results/patchcore/mvtec/bottle-cls/meta_data.json"
+    save_img_dir     = "./results/patchcore/mvtec/bottle-cls/output.jpg"
+    predict(image_path, torchscript_path, param_dir, save_img_dir, use_cuda=True)

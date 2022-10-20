@@ -98,7 +98,7 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
     anomaly_map = anomaly_map * 255 # 0~1 -> 0~255
     anomaly_map = anomaly_map.astype(np.uint8)  # 变为整数
 
-    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)  # [2711, 5351] -> [2711, 5351, 3]
+    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)  # [900, 900] -> [900, 900, 3]
     anomaly_map = cv2.cvtColor(anomaly_map, cv2.COLOR_BGR2RGB)
     return anomaly_map
 
@@ -125,7 +125,7 @@ def superimpose_anomaly_map(
         np.ndarray: Image with anomaly map superimposed on top of it.
     """
 
-    # 单通道热力图转换为rgb [2711, 5351] -> [2711, 5351, 3]
+    # 单通道热力图转换为rgb [900, 900] -> [900, 900, 3]
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
     # 叠加图片
     superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)

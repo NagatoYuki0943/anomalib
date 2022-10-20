@@ -68,20 +68,8 @@ def export_convert(
 
 
     #-----------------------------------------------------------
-    # torchscript 使用 torch.jit.script, 因为模型forward中有判断
-    # cpu
-    script_path = os.path.join(str(export_path), "model_cpu.torchscript")
-    ts = torch.jit.trace(model.model.cpu(), example_inputs=x)
-    torch.jit.save(ts, script_path)
-    # cuda
-    script_path = os.path.join(str(export_path), "model_gpu.torchscript")
-    ts = torch.jit.trace(model.model.cuda(), example_inputs=x.cuda())
-    torch.jit.save(ts, script_path)
-    print("export torchscript success!")
-
-
-    #-----------------------------------------------------------
     # onnx
+    # 先导出onnx,防止导出torchscript之后的onnx的input和model在不同设备
     onnx_path = os.path.join(str(export_path), "model.onnx")
     torch.onnx.export(
         model.model,
@@ -100,18 +88,36 @@ def export_convert(
 
 
     #-----------------------------------------------------------
+    # torchscript 使用 torch.jit.script, 因为模型forward中有判断
+    # cuda
+    if torch.cuda.is_available():
+        script_path = os.path.join(export_path, "model_gpu.torchscript")
+        ts = torch.jit.trace(model.model.cuda(), example_inputs=x.cuda())
+        torch.jit.save(ts, script_path)
+    # cpu
+    script_path = os.path.join(export_path, "model_cpu.torchscript")
+    ts = torch.jit.trace(model.model.cpu(), example_inputs=x)
+    torch.jit.save(ts, script_path)
+    print("export torchscript success!")
+
+
+    #-----------------------------------------------------------
     # openvino
-    export_path = os.path.join(str(export_path), export_mode)
     if export_mode == "openvino":
-        optimize_command = "mo --input_model " + str(onnx_path) + " --output_dir " + str(export_path)
+        openvino_export_path = os.path.join(str(export_path), export_mode)
+        optimize_command = "mo --input_model " + str(onnx_path) + " --output_dir " + str(openvino_export_path)
         assert os.system(optimize_command) == 0, "OpenVINO conversion failed"
         print("export openvino success!")
 
 
+    #-----------------------------------------------------------
+    # 配置文件保存在onnx同目录
     with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
         meta_data = get_model_metadata(model)
         # Convert metadata from torch
         for key, value in meta_data.items():
             if isinstance(value, Tensor):
                 meta_data[key] = value.numpy().tolist()
+        # save infer image size
+        meta_data['img_size'] = [height, width]
         json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)

@@ -6,9 +6,6 @@ dataset:
   abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
   task: classification      # classification or segmentation
-  mask: null                # optional
-  extensions: null
-  split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
   image_size: 256
   train_batch_size: 8
   test_batch_size: 32
@@ -29,8 +26,10 @@ model:
   name: draem
   anomaly_source_path: null # optional, e.g. ./datasets/dtd
   lr: 0.0001
+  enable_sspcab: false
+  sspcab_lambda: 0.1
   early_stopping:
-    patience: 50
+    patience: 20
     metric: pixel_AUROC
     mode: max
   normalization_method: min_max # options: [none, min_max, cdf]
@@ -43,9 +42,9 @@ metrics:
     - F1Score
     - AUROC
   threshold:
-    image_default: 3
-    pixel_default: 3
-    adaptive: true
+    method: adaptive # options: [adaptive, manual]
+    manual_image: null
+    manual_pixel: null
 
 visualization:
   show_images: False # show images on the screen
