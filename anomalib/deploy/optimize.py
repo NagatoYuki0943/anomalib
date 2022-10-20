@@ -51,8 +51,8 @@ def export_convert(
     export_mode: str,
     export_path: Optional[Union[str, Path]] = None,
 ):
-    """Export the model to onnx format, torchscript format and convert to OpenVINO IR.
-        torchscript format will export with onnx format.
+    """Export the model to onnx format and convert to OpenVINO IR. Metadata.json is generated regardless of export mode.
+
     Args:
         model (AnomalyModule): Model to convert.
         input_size (Union[List[int], Tuple[int, int]]): Image size used as the input for onnx converter.
@@ -100,7 +100,14 @@ def export_convert(
 
 
     #-----------------------------------------------------------
-    # save meta_data.json for any format. copy from below
+    # openvino
+    export_path = os.path.join(str(export_path), export_mode)
+    if export_mode == "openvino":
+        optimize_command = "mo --input_model " + str(onnx_path) + " --output_dir " + str(export_path)
+        assert os.system(optimize_command) == 0, "OpenVINO conversion failed"
+        print("export openvino success!")
+
+
     with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
         meta_data = get_model_metadata(model)
         # Convert metadata from torch
@@ -108,20 +115,3 @@ def export_convert(
             if isinstance(value, Tensor):
                 meta_data[key] = value.numpy().tolist()
         json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)
-
-
-    #-----------------------------------------------------------
-    # openvino
-    if export_mode == "openvino":
-        export_path = os.path.join(str(export_path), "openvino")
-        optimize_command = "mo --input_model " + str(onnx_path) + " --output_dir " + str(export_path)
-        assert os.system(optimize_command) == 0, "OpenVINO conversion failed"
-        print("export openvino success!")
-
-        with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
-            # meta_data = get_model_metadata(model)
-            # # Convert metadata from torch
-            # for key, value in meta_data.items():
-            #     if isinstance(value, Tensor):
-            #         meta_data[key] = value.numpy().tolist()
-            json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)
