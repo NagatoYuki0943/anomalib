@@ -4,10 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import os
+import subprocess  # nosec
+from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
+import os
 import numpy as np
 import torch
 from torch import Tensor
@@ -17,9 +19,14 @@ from onnxsim import simplify
 
 from anomalib.models.components import AnomalyModule
 
-#-------------------------------------#
-#   在模型中读取保存的metadata
-#-------------------------------------#
+
+class ExportMode(str, Enum):
+    """Model export mode."""
+
+    ONNX = "onnx"
+    OPENVINO = "openvino"
+
+
 def get_model_metadata(model: AnomalyModule) -> Dict[str, Tensor]:
     """Get meta data related to normalization from model.
 
@@ -45,19 +52,21 @@ def get_model_metadata(model: AnomalyModule) -> Dict[str, Tensor]:
     return meta_data
 
 
-def export_convert(
+def export(
     model: AnomalyModule,
     input_size: Union[List[int], Tuple[int, int]],
-    export_mode: str,
-    export_path: Optional[Union[str, Path]] = None,
+    export_mode: ExportMode,
+    export_root: Union[str, Path],
 ):
-    """Export the model to onnx format and convert to OpenVINO IR. Metadata.json is generated regardless of export mode.
+    """Export the model to onnx format and (optionally) convert to OpenVINO IR if export mode is set to OpenVINO.
+
+    Metadata.json is generated regardless of export mode.
 
     Args:
         model (AnomalyModule): Model to convert.
         input_size (Union[List[int], Tuple[int, int]]): Image size used as the input for onnx converter.
-        export_path (Union[str, Path]): Path to exported OpenVINO IR.
-        export_mode (str): Mode to export onnx or openvino
+        export_root (Union[str, Path]): Path to exported ONNX/OpenVINO IR.
+        export_mode (ExportMode): Mode to export the model. ONNX or OpenVINO.
     """
     height, width = input_size
     # 输入的图片
@@ -70,7 +79,7 @@ def export_convert(
     #-----------------------------------------------------------
     # onnx
     # 先导出onnx,防止导出torchscript之后的onnx的input和model在不同设备
-    onnx_path = os.path.join(str(export_path), "model.onnx")
+    onnx_path = os.path.join(str(export_root), "model.onnx")
     torch.onnx.export(
         model.model,
         x.to(model.device),
@@ -91,11 +100,11 @@ def export_convert(
     # torchscript 使用 torch.jit.script, 因为模型forward中有判断
     # cuda
     if torch.cuda.is_available():
-        script_path = os.path.join(export_path, "model_gpu.torchscript")
+        script_path = os.path.join(export_root, "model_gpu.torchscript")
         ts = torch.jit.trace(model.model.cuda(), example_inputs=x.cuda())
         torch.jit.save(ts, script_path)
     # cpu
-    script_path = os.path.join(export_path, "model_cpu.torchscript")
+    script_path = os.path.join(export_root, "model_cpu.torchscript")
     ts = torch.jit.trace(model.model.cpu(), example_inputs=x)
     torch.jit.save(ts, script_path)
     print("export torchscript success!")
@@ -104,7 +113,7 @@ def export_convert(
     #-----------------------------------------------------------
     # openvino
     if export_mode == "openvino":
-        openvino_export_path = os.path.join(str(export_path), export_mode)
+        openvino_export_path = os.path.join(str(export_root), export_mode)
         optimize_command = "mo --input_model " + str(onnx_path) + " --output_dir " + str(openvino_export_path)
         assert os.system(optimize_command) == 0, "OpenVINO conversion failed"
         print("export openvino success!")
@@ -112,7 +121,7 @@ def export_convert(
 
     #-----------------------------------------------------------
     # 配置文件保存在onnx同目录
-    with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
+    with open(Path(export_root) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
         meta_data = get_model_metadata(model)
         # Convert metadata from torch
         for key, value in meta_data.items():
@@ -121,3 +130,38 @@ def export_convert(
         # save infer image size
         meta_data['img_size'] = [height, width]
         json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)
+
+
+def _export_to_onnx(model: AnomalyModule, input_size: Union[List[int], Tuple[int, int]], export_path: Path) -> Path:
+    """Export model to onnx.
+
+    Args:
+        model (AnomalyModule): Model to export.
+        input_size (Union[List[int], Tuple[int, int]]): Image size used as the input for onnx converter.
+        export_path (Path): Path to the root folder of the exported model.
+
+    Returns:
+        Path: Path to the exported onnx model.
+    """
+    onnx_path = export_path / "model.onnx"
+    torch.onnx.export(
+        model.model,
+        torch.zeros((1, 3, *input_size)).to(model.device),
+        onnx_path,
+        opset_version=11,
+        input_names=["input"],
+        output_names=["output"],
+    )
+
+    return onnx_path
+
+
+def _export_to_openvino(export_path: Union[str, Path], onnx_path: Path):
+    """Convert onnx model to OpenVINO IR.
+
+    Args:
+        export_path (Union[str, Path]): Path to the root folder of the exported model.
+        onnx_path (Path): Path to the exported onnx model.
+    """
+    optimize_command = ["mo", "--input_model", str(onnx_path), "--output_dir", str(export_path)]
+    subprocess.run(optimize_command, check=True)  # nosec
