@@ -161,7 +161,7 @@ class TorchInferencer(Inferencer):
             #   throws an error regarding type mismatch torch vs np.
             if isinstance(predictions[1], (Tensor)):
                 anomaly_map, pred_score = predictions
-                anomaly_map = anomaly_map.detach().cpu().numpy()    # [1, 1, 512, 512]
+                anomaly_map = anomaly_map.detach().cpu().numpy()    # [1, 1, 224, 224]
                 pred_score = pred_score.detach().cpu().numpy()      # 1.0392
             else:
                 anomaly_map, pred_score = predictions
@@ -179,7 +179,7 @@ class TorchInferencer(Inferencer):
         if "pixel_threshold" in meta_data:
             pred_mask = (anomaly_map >= meta_data["pixel_threshold"]).squeeze().astype(np.uint8)
 
-        anomaly_map = anomaly_map.squeeze() # [1, 1, 512, 512] -> [512, 512]
+        anomaly_map = anomaly_map.squeeze() # [1, 1, 224, 224] -> [224, 224]
         anomaly_map, pred_score = self._normalize(anomaly_map, pred_score, meta_data)
 
         if isinstance(anomaly_map, Tensor):

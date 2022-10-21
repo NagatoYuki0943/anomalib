@@ -34,7 +34,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
 
         self.backbone = backbone
         self.layers = layers
-        self.input_size = input_size        # [512, 512]
+        self.input_size = input_size        # [224, 224]
         self.num_neighbors = num_neighbors
 
         # 模型返回layer2和layer3的输出
@@ -108,7 +108,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             patch_scores = patch_scores.reshape((batch_size, 1, width, height))
             # get anomaly map
             anomaly_map = self.anomaly_map_generator(patch_scores)
-            # [1, 1, 512, 512]  [1]
+            # [1, 1, 224, 224]  [1]
             output = (anomaly_map, anomaly_score)
 
         return output

@@ -143,7 +143,7 @@ class Inferencer(ABC):
         """Applies normalization and resizes the image.
 
         Args:
-            anomaly_maps (Union[Tensor, np.ndarray]): Predicted raw anomaly map.            torch.Size([512, 512])
+            anomaly_maps (Union[Tensor, np.ndarray]): Predicted raw anomaly map.            torch.Size([224, 224])
             pred_scores (Union[Tensor, np.float32]): Predicted anomaly score                tensor(1.0392)
             meta_data (Dict): Meta data. Post-processing step sometimes requires
                 additional meta data such as image shape. This variable comprises such info.

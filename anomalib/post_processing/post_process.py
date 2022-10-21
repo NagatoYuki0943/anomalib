@@ -86,12 +86,12 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
         Compute anomaly color heatmap.
 
     Args:
-        anomaly_map (np.ndarray): Final anomaly map computed by the distance metric.        [2711, 5351]
+        anomaly_map (np.ndarray): Final anomaly map computed by the distance metric.        [900, 900]
         normalize (bool, optional): Bool to normalize the anomaly map prior to applying
             the color map. Defaults to True.
 
     Returns:
-        np.ndarray: [description]                                                           [2711, 5351, 3]
+        np.ndarray: [description]                                                           [900, 900, 3]
     """
     if normalize:
         anomaly_map = (anomaly_map - anomaly_map.min()) / np.ptp(anomaly_map)
@@ -110,8 +110,8 @@ def superimpose_anomaly_map(
         Superimpose anomaly map on top of in the input image.
 
     Args:
-        anomaly_map (np.ndarray): Anomaly map       热力图  [2711, 5351]
-        image (np.ndarray): Input image             原图    [2711, 5351]
+        anomaly_map (np.ndarray): Anomaly map       热力图  [900, 900]
+        image (np.ndarray): Input image             原图    [900, 900]
         alpha (float, optional): Weight to overlay anomaly map
             on the input image. Defaults to 0.4.
         gamma (int, optional): Value to add to the blended image

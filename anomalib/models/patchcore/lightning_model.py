@@ -114,7 +114,7 @@ class Patchcore(AnomalyModule):
         """
 
         # 根据topk的最小值绘制像素级别热力图, 得到图片级别分数
-        # [1, 1, 512, 512]  [1]
+        # [1, 1, 224, 224]  [1]
         anomaly_maps, anomaly_score = self.model(batch["image"])
         batch["anomaly_maps"] = anomaly_maps
         batch["pred_scores"] = anomaly_score
@@ -131,7 +131,7 @@ class PatchcoreLightning(Patchcore):
 
     def __init__(self, hparams) -> None:
         super().__init__(
-            input_size=hparams.model.input_size,    # 512 512
+            input_size=hparams.model.input_size,    # [224, 224]
             backbone=hparams.model.backbone,        # resnet18
             layers=hparams.model.layers,            # layer2 layer3
             pre_trained=hparams.model.pre_trained,

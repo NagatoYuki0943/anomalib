@@ -86,7 +86,7 @@ def normalize(
     """Applies normalization and resizes the image.
 
     Args:
-        anomaly_maps (Union[Tensor, np.ndarray]): Predicted raw anomaly map.            torch.Size([512, 512])
+        anomaly_maps (Union[Tensor, np.ndarray]): Predicted raw anomaly map.            torch.Size([224, 224])
         pred_scores (Union[Tensor, np.float32]): Predicted anomaly score                tensor(1.0392)
         meta_data (Dict): Meta data. Post-processing step sometimes requires
             additional meta data such as image shape. This variable comprises such info.
@@ -156,19 +156,19 @@ def anomaly_map_to_color_map(anomaly_map: np.ndarray, normalize: bool = True) ->
         Compute anomaly color heatmap.
 
     Args:
-        anomaly_map (np.ndarray): Final anomaly map computed by the distance metric.        [2711, 5351]
+        anomaly_map (np.ndarray): Final anomaly map computed by the distance metric.        [900, 900]
         normalize (bool, optional): Bool to normalize the anomaly map prior to applying
             the color map. Defaults to True.
 
     Returns:
-        np.ndarray: [description]                                                           [2711, 5351, 3]
+        np.ndarray: [description]                                                           [900, 900, 3]
     """
     if normalize:
         anomaly_map = (anomaly_map - anomaly_map.min()) / np.ptp(anomaly_map)   # np.ptp()函数实现的功能等同于np.max(array) - np.min(array)
     anomaly_map = anomaly_map * 255                                             # 0~1 -> 0~255
     anomaly_map = anomaly_map.astype(np.uint8)                                  # 变为整数
 
-    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)              # [2711, 5351] -> [2711, 5351, 3]
+    anomaly_map = cv2.applyColorMap(anomaly_map, cv2.COLORMAP_JET)              # [900, 900] -> [900, 900, 3]
     anomaly_map = cv2.cvtColor(anomaly_map, cv2.COLOR_RGB2BGR)                  # RGB2BGR
     return anomaly_map
 

@@ -18,7 +18,7 @@ class AnomalyMapGenerator(nn.Module):
 
     def __init__(
         self,
-        input_size: Union[ListConfig, Tuple],   # 原图大小 [512, 512]
+        input_size: Union[ListConfig, Tuple],   # [224, 224]
         sigma: int = 4,
     ) -> None:
         super().__init__()
