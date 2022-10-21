@@ -3,7 +3,7 @@ import onnxruntime as ort
 import numpy as np
 
 
-onnx_path = "./results/patchcore/mvtec/bottle-cls/model.onnx"
+onnx_path = "./results/patchcore/mvtec/bottle-cls/optimization/model.onnx"
 
 
 so = ort.SessionOptions()

@@ -7,6 +7,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from typing import Union, Dict, Tuple, Optional
 from omegaconf import DictConfig
+import time
 
 
 #-----------------------------#
@@ -244,6 +245,7 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
     # 3.读取模型
     trace_model = torch.jit.load(torchscript_path)
 
+    start = time.time()
     # 4.图片预处理
     transform = get_transform(pred_image_height, pred_image_width)
     image_tensor = transform(image=image)
@@ -253,6 +255,7 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
 
     # 5.预测得到热力图和概率
     anomaly_map, pred_score = trace_model(image_tensor)
+    print("pred_score:", pred_score)    # 3.0487
 
     # 6.预测结果后处理，包括归一化热力图和概率，所放到原图尺寸
     anomaly_map, pred_score = post_process(anomaly_map, pred_score, meta_data)
@@ -267,13 +270,16 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
     output = add_label(superimposed_map, pred_score)
     output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
 
+    end = time.time()
+    print("infer time:", end-start) # infer time: 2.19
+
     # 9.写入图片
     cv2.imwrite(filename=save_img_dir, img=output)
 
 
 if __name__ == "__main__":
     image_path       = "./datasets/MVTec/bottle/test/broken_large/000.png"
-    torchscript_path = "./results/patchcore/mvtec/bottle-cls/model_gpu.torchscript"
-    param_dir        = "./results/patchcore/mvtec/bottle-cls/meta_data.json"
+    torchscript_path = "./results/patchcore/mvtec/bottle-cls/optimization/model_gpu.torchscript"
+    param_dir        = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
     save_img_dir     = "./results/patchcore/mvtec/bottle-cls/output.jpg"
     predict(image_path, torchscript_path, param_dir, save_img_dir, use_cuda=True)

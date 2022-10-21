@@ -180,7 +180,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
         print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
-        distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
+        distances = my_cdist_p2(embedding, self.memory_bank)  # euclidean norm
         patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations
 
@@ -204,9 +204,20 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         nn_sample = self.memory_bank[nn_index, :]
         _, support_samples = self.nearest_neighbors(nn_sample, n_neighbors=self.num_neighbors)  # N_b(m^*) in the paper
         # 4. Find the distance of the patch features to each of the support samples
-        distances = torch.cdist(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples], p=2.0)
+        distances = my_cdist_p2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples], p=2.0)
         # 5. Apply softmax to find the weights
         weights = (1 - F.softmax(distances.squeeze()))[..., 0]
         # 6. Apply the weight factor to the score
         score = weights * score  # S^* in the paper
         return score
+
+
+def my_cdist_p2(x1: Tensor, x2: Tensor) -> Tensor:
+    """very fast
+        https://github.com/openvinotoolkit/anomalib/issues/440#issuecomment-1191184221
+    """
+    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+    res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
+    res = res.clamp_min_(1e-30).sqrt_()
+    return res
