@@ -279,7 +279,7 @@ def predict(image_path: str, torchscript_path: str, param_dir: str, save_img_dir
 
 if __name__ == "__main__":
     image_path       = "./datasets/MVTec/bottle/test/broken_large/000.png"
-    torchscript_path = "./results/patchcore/mvtec/bottle-cls/optimization/model_gpu.torchscript"
+    torchscript_path = "./results/patchcore/mvtec/bottle-cls/optimization/model_cpu.torchscript"
     param_dir        = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
     save_img_dir     = "./results/patchcore/mvtec/bottle-cls/output.jpg"
-    predict(image_path, torchscript_path, param_dir, save_img_dir, use_cuda=True)
+    predict(image_path, torchscript_path, param_dir, save_img_dir, use_cuda=False)

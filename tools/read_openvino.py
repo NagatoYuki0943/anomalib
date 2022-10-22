@@ -60,7 +60,7 @@ def main():
 
     infer_request = compiled_model.create_infer_request()
 
-    x = np.random.randn(1, 3, 224, 224)
+    x = np.ones((1, 3, 224, 224))
     x = x.astype(dtype=np.float32)
 
     start = time.time()

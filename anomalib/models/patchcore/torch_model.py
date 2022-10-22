@@ -16,6 +16,7 @@ from anomalib.models.components import (
 )
 from anomalib.models.patchcore.anomaly_map import AnomalyMapGenerator
 from anomalib.pre_processing import Tiler
+import time
 
 
 class PatchcoreModel(DynamicBufferModule, nn.Module):
@@ -179,7 +180,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
-        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
+        # print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = my_cdist_p2(embedding, self.memory_bank)  # euclidean norm
         patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations
@@ -204,7 +205,14 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         nn_sample = self.memory_bank[nn_index, :]
         _, support_samples = self.nearest_neighbors(nn_sample, n_neighbors=self.num_neighbors)  # N_b(m^*) in the paper
         # 4. Find the distance of the patch features to each of the support samples
-        distances = my_cdist_p2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples], p=2.0)
+        # print(max_patches.size())                           # [b]
+        # print(embedding[max_patches].size())                # [b, 384]
+        # print(embedding[max_patches].unsqueeze(1).size())   # [b, 1, 384]   **
+        # print(support_samples.size())                       # [b, 9])
+        # print(self.memory_bank[support_samples].size())     # [b, 9, 384]   **
+        distances = my_cdist_p2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples])
+        # print(distances.size())                             # [b, 1, 9]     **
+        # exit()
         # 5. Apply softmax to find the weights
         weights = (1 - F.softmax(distances.squeeze()))[..., 0]
         # 6. Apply the weight factor to the score
@@ -213,11 +221,94 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
 
 
 def my_cdist_p2(x1: Tensor, x2: Tensor) -> Tensor:
-    """very fast
+    """这个函数主要是为了解决torch.cdist导出onnx后,使用其他推理引擎推理onnx内存占用过大的问题
+        如果使用torchscript推理则不会有内存占用过大的问题,使用原本的torch.cdist即可
+
+        比torch.cdist更慢,不过导出onnx更快
+        dim=3时第1个维度代表batch,大了之后相比torch.cdist更慢
         https://github.com/openvinotoolkit/anomalib/issues/440#issuecomment-1191184221
+
+        注意: 导出为onnx之后,使用onnxruntime=1.10推理会失败,1.12.1版本测试可以使用
+             不过onnxruntime=1.12.1要求的numpy版本和openvino=2022.1不兼容,所以这两个推理版本引擎没法同时使用
     """
-    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
-    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
-    res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
-    res = res.clamp_min_(1e-30).sqrt_()
+    if x1.dim() == x2.dim() == 2:
+        x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+        x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+        res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
+        res = res.clamp_min_(1e-30).sqrt_()
+    elif x1.dim() == x2.dim() == 3:
+        # batch=1 不循环加速
+        if x1.size(0) == 1:
+            # x1.squeeze_(0)    # 这样在pytorch中和 squeeze(0) 效果相同,但是导出onnx会导致输入维度直接变为2维的
+            # x2.squeeze_(0)
+            x1 = x1.squeeze(0)  # [1, a, x] -> [a, x]
+            x2 = x2.squeeze(0)  # [1, b, x] -> [b, x]
+            x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+            x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+            res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
+            res = res.clamp_min_(1e-30).sqrt_()
+            res.unsqueeze_(0)   # [a, b] -> [1, a, b]
+        else:
+            # batch > 1
+            res = []
+            for x1_, x2_ in zip(x1, x2):
+                x1_norm = x1_.pow(2).sum(dim=-1, keepdim=True)  # [a, x]
+                x2_norm = x2_.pow(2).sum(dim=-1, keepdim=True)  # [a, x]
+                res_ = torch.addmm(x2_norm.transpose(-2, -1), x1_, x2_.transpose(-2, -1), alpha=-2).add_(x1_norm)
+                res_ = res_.clamp_min_(1e-30).sqrt_()
+                res.append(res_)
+            res = torch.stack(res, dim=0)   # [a, x] -> [b, a, x]
     return res
+
+
+if __name__ == "__main__":
+    #####################################################
+    # 对比速度
+    x = torch.randn(640, 384)
+    y = torch.randn(6400, 384)
+
+    start = time.time()
+    res = torch.cdist(x, y)
+    end = time.time()
+    print(res.size())                           # [640, 6400]
+    print("cdist time:", end - start)           # cdist time: 0.014958620071411133
+
+    start = time.time()
+    res = my_cdist_p2(x, y)
+    end = time.time()
+    print(res.size())                           # [640, 6400]
+    print("my_cdist_p2 time:", end - start)     # my_cdist_p2 time: 0.013962984085083008
+
+
+    # 1代表batch,高了会慢
+    x = torch.randn(1, 640, 384)
+    y = torch.randn(1, 6400, 384)
+
+    start = time.time()
+    res = torch.cdist(x, y)
+    end = time.time()
+    print(res.size())                           # [1, 640, 6400]
+    print("cdist time:", end - start)           # cdist time: 0.013962507247924805
+
+    start = time.time()
+    res = my_cdist_p2(x, y)
+    end = time.time()
+    print(res.size())                           # [1, 640, 6400]
+    print("my_cdist_p2 time:", end - start)     # my_cdist_p2 time: 0.01396322250366211
+
+
+    # 10代表batch,高了会慢
+    x = torch.randn(10, 640, 384)
+    y = torch.randn(10, 6400, 384)
+
+    start = time.time()
+    res = torch.cdist(x, y)
+    end = time.time()
+    print(res.size())                           # [10, 640, 6400]
+    print("cdist time:", end - start)           # cdist time: 0.14163708686828613
+
+    start = time.time()
+    res = my_cdist_p2(x, y)
+    end = time.time()
+    print(res.size())                           # [10, 640, 6400]
+    print("my_cdist_p2 time:", end - start)     # my_cdist_p2 time: 0.16158318519592285

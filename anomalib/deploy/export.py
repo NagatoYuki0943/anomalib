@@ -96,8 +96,8 @@ def export(
     # important for torchscript, it has been implemented in inferencers, but not implemented in training.
     model.eval()
 
+    _export_to_torchscript(model, input_size, export_path)
     onnx_path = _export_to_onnx(model, input_size, export_path)
-    _export_to_torchscript(model, input_size, export_path)      # torchscript在onnx后面，因为torchscript会更换设备，导致onnx导出失败
     if export_mode == ExportMode.OPENVINO:
         _export_to_openvino(export_path, onnx_path)
 
@@ -113,13 +113,16 @@ def _export_to_torchscript(model: AnomalyModule, input_size: Union[List[int], Tu
     x = torch.zeros(1, 3, *input_size)
     # cpu
     script_path = os.path.join(export_path, "model_cpu.torchscript")
-    ts = torch.jit.trace(model.model.cpu(), example_inputs=x)
+    model.cpu()
+    ts = torch.jit.trace(model.model, example_inputs=x)
     torch.jit.save(ts, script_path)
     # cuda
     if torch.cuda.is_available():
         script_path = os.path.join(export_path, "model_gpu.torchscript")
-        ts = torch.jit.trace(model.model.cuda(), example_inputs=x.cuda())
+        model.cuda()
+        ts = torch.jit.trace(model.model, example_inputs=x.cuda())
         torch.jit.save(ts, script_path)
+
     print("export torchscript success!")
 
 
