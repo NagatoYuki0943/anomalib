@@ -73,6 +73,8 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         #----------------------------#
         #   得到backhone的多层输出
         #----------------------------#
+        # 不需要训练
+        self.feature_extractor.eval()
         with torch.no_grad():
             features = self.feature_extractor(input_tensor)
 
@@ -181,7 +183,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
         # print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
-        distances = my_cdist_p2(embedding, self.memory_bank)  # euclidean norm
+        distances = my_cdist_p2_v2(embedding, self.memory_bank)  # euclidean norm
         patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations
 
@@ -197,24 +199,31 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         """
 
         # 1. Find the patch with the largest distance to it's nearest neighbor in each image
-        max_patches = torch.argmax(patch_scores, dim=1)  # (m^test,* in the paper)
+        max_patches = torch.argmax(patch_scores, dim=1)         # (m^test,* in the paper)
+        # print(max_patches.size())                           # [b]
+
         # 2. Find the distance of the patch to it's nearest neighbor, and the location of the nn in the membank
         score = patch_scores[torch.arange(len(patch_scores)), max_patches]  # s in the paper
+        # print(score.size())                                 # [b]
         nn_index = locations[torch.arange(len(patch_scores)), max_patches]  # m^* in the paper
+        # print(nn_index.size())                              # [b]
+
         # 3. Find the support samples of the nearest neighbor in the membank
         nn_sample = self.memory_bank[nn_index, :]
+        # print(nn_sample.size())                             # [b, 384]
         _, support_samples = self.nearest_neighbors(nn_sample, n_neighbors=self.num_neighbors)  # N_b(m^*) in the paper
+
         # 4. Find the distance of the patch features to each of the support samples
-        # print(max_patches.size())                           # [b]
         # print(embedding[max_patches].size())                # [b, 384]
         # print(embedding[max_patches].unsqueeze(1).size())   # [b, 1, 384]   **
         # print(support_samples.size())                       # [b, 9])
         # print(self.memory_bank[support_samples].size())     # [b, 9, 384]   **
-        distances = my_cdist_p2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples])
+        distances = my_cdist_p2_v2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples])
         # print(distances.size())                             # [b, 1, 9]     **
         # exit()
+
         # 5. Apply softmax to find the weights
-        weights = (1 - F.softmax(distances.squeeze()))[..., 0]
+        weights = (1 - F.softmax(distances.squeeze(), dim=-1))[..., 0]
         # 6. Apply the weight factor to the score
         score = weights * score  # S^* in the paper
         return score
@@ -228,8 +237,32 @@ def my_cdist_p2(x1: Tensor, x2: Tensor) -> Tensor:
         dim=3时第1个维度代表batch,大了之后相比torch.cdist更慢
         https://github.com/openvinotoolkit/anomalib/issues/440#issuecomment-1191184221
 
-        注意: 导出为onnx之后,使用onnxruntime=1.10推理会失败,1.12.1版本测试可以使用
-             不过onnxruntime=1.12.1要求的numpy版本和openvino=2022.1不兼容,所以这两个推理版本引擎没法同时使用
+        只能处理二维矩阵
+    Args:
+        x1 (Tensor): [x, z]
+        x2 (Tensor): [y, z]
+
+    Returns:
+        Tensor: [x, y]
+    """
+    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+    res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
+    res = res.clamp_min_(1e-30).sqrt_()
+    return res
+
+
+def my_cdist_p2_v1(x1: Tensor, x2: Tensor) -> Tensor:
+    """这个函数主要是为了解决torch.cdist导出onnx后,使用其他推理引擎推理onnx内存占用过大的问题
+        如果使用torchscript推理则不会有内存占用过大的问题,使用原本的torch.cdist即可
+
+        可以处理二维或者三维矩阵
+    Args:
+        x1 (Tensor): [x, z] or [b, x, z]
+        x2 (Tensor): [y, z] or [b, y, z]
+
+    Returns:
+        Tensor: [x, y] or [b, x, y]
     """
     if x1.dim() == x2.dim() == 2:
         x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
@@ -261,54 +294,48 @@ def my_cdist_p2(x1: Tensor, x2: Tensor) -> Tensor:
     return res
 
 
+def my_cdist_p2_v2(x1: Tensor, x2: Tensor) -> Tensor:
+    """这个函数主要是为了解决torch.cdist导出onnx后,使用其他推理引擎推理onnx内存占用过大的问题
+        如果使用torchscript推理则不会有内存占用过大的问题,使用原本的torch.cdist即可
+
+        可以处理多维矩阵
+    Args:
+        x1 (Tensor): [x, z] or [..., x, z]
+        x2 (Tensor): [y, z] or [..., y, z]
+
+    Returns:
+        Tensor: [x, y] or [..., x, y]
+    """
+    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+    # res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
+    res = x2_norm.transpose(-2, -1) - 2 * x1 @ x2.transpose(-2, -1) + x1_norm
+    res = res.clamp_min_(1e-30).sqrt_()
+    return res
+
+
 if __name__ == "__main__":
-    #####################################################
-    # 对比速度
     x = torch.randn(640, 384)
     y = torch.randn(6400, 384)
-
-    start = time.time()
-    res = torch.cdist(x, y)
-    end = time.time()
-    print(res.size())                           # [640, 6400]
-    print("cdist time:", end - start)           # cdist time: 0.014958620071411133
-
-    start = time.time()
-    res = my_cdist_p2(x, y)
-    end = time.time()
-    print(res.size())                           # [640, 6400]
-    print("my_cdist_p2 time:", end - start)     # my_cdist_p2 time: 0.013962984085083008
+    y0 = torch.cdist(x, y)
+    y1 = my_cdist_p2(x, y)
+    y2 = my_cdist_p2_v1(x, y)
+    y3 = my_cdist_p2_v2(x, y)
+    print(y0.size())                # [640, 6400]
+    print(y0.eq(y1).sum().item())   # 3248923
+    print(y1.eq(y2).sum().item())   # 4096000
+    print(y2.eq(y3).sum().item())   # 3796318
 
 
-    # 1代表batch,高了会慢
     x = torch.randn(1, 640, 384)
     y = torch.randn(1, 6400, 384)
-
-    start = time.time()
-    res = torch.cdist(x, y)
-    end = time.time()
-    print(res.size())                           # [1, 640, 6400]
-    print("cdist time:", end - start)           # cdist time: 0.013962507247924805
-
-    start = time.time()
-    res = my_cdist_p2(x, y)
-    end = time.time()
-    print(res.size())                           # [1, 640, 6400]
-    print("my_cdist_p2 time:", end - start)     # my_cdist_p2 time: 0.01396322250366211
-
-
-    # 10代表batch,高了会慢
-    x = torch.randn(10, 640, 384)
-    y = torch.randn(10, 6400, 384)
-
-    start = time.time()
-    res = torch.cdist(x, y)
-    end = time.time()
-    print(res.size())                           # [10, 640, 6400]
-    print("cdist time:", end - start)           # cdist time: 0.14163708686828613
-
-    start = time.time()
-    res = my_cdist_p2(x, y)
-    end = time.time()
-    print(res.size())                           # [10, 640, 6400]
-    print("my_cdist_p2 time:", end - start)     # my_cdist_p2 time: 0.16158318519592285
+    y0 = torch.cdist(x, y)
+    try:
+        y1 = my_cdist_p2(x, y)
+    except:
+        print("my_cdist_p2只能处理二维数据")
+    y2 = my_cdist_p2_v1(x, y)
+    y3 = my_cdist_p2_v2(x, y)
+    print(y0.size())                # [1, 640, 6400]
+    print(y0.eq(y2).sum().item())   # 3254730
+    print(y2.eq(y3).sum().item())   # 3796352

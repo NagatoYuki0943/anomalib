@@ -95,8 +95,8 @@ def export(
 
     # important for torchscript, it has been implemented in inferencers, but not implemented in training.
     model.eval()
-
     _export_to_torchscript(model, input_size, export_path)
+
     onnx_path = _export_to_onnx(model, input_size, export_path)
     if export_mode == ExportMode.OPENVINO:
         _export_to_openvino(export_path, onnx_path)
@@ -122,7 +122,6 @@ def _export_to_torchscript(model: AnomalyModule, input_size: Union[List[int], Tu
         model.cuda()
         ts = torch.jit.trace(model.model, example_inputs=x.cuda())
         torch.jit.save(ts, script_path)
-
     print("export torchscript success!")
 
 
@@ -140,17 +139,18 @@ def _export_to_onnx(model: AnomalyModule, input_size: Union[List[int], Tuple[int
     onnx_path = export_path / "model.onnx"
     torch.onnx.export(
         model.model,
-        torch.zeros((1, 3, *input_size)).to(model.device),
+        torch.zeros(1, 3, *input_size).to(model.device),
         onnx_path,
         opset_version=11,
         input_names=["input"],
         output_names=["output"],
     )
-    model_ = onnx.load(onnx_path)
-    # 简化模型,更好看
-    model_simp, check = simplify(model_)
-    assert check, "Simplified ONNX model could not be validated"
-    onnx.save(model_simp, onnx_path)
+    # 简化模型,更好看 不可用,会导致模型onnx结果错误
+    # model_ = onnx.load(onnx_path)
+    # model_simp, check = simplify(model_)
+    # assert check, "Simplified ONNX model could not be validated"
+    # onnx.save(model_simp, onnx_path)
+
     print("export onnx success!")
 
     return onnx_path

@@ -87,3 +87,7 @@ class FeatureExtractor(nn.Module):
         """
         features = dict(zip(self.layers, self.feature_extractor(input_tensor)))
         return features
+
+
+if __name__ == "__main__":
+    pass
