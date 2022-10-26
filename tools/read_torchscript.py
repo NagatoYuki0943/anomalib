@@ -28,12 +28,12 @@ def predict(model_path: str, image_path: str, param_dir: str, save_img_dir: str,
     # 3.获取meta_data
     meta_data = get_meta_data(param_dir)
     # 推理时使用的图片大小
-    pred_image_height, pred_image_width = meta_data["img_size"]
-    meta_data["image_shape"] = [origin_height, origin_width]
+    infer_height, infer_width = meta_data["infer_size"]
+    meta_data["image_size"] = [origin_height, origin_width]
 
     start = time.time()
     # 4.图片预处理
-    transform = get_transform(pred_image_height, pred_image_width, tensor=True)
+    transform = get_transform(infer_height, infer_width, tensor=True)
     x = transform(image=image)
     x = x['image'].unsqueeze(0)
     # x = torch.ones(1, 3, 224, 224)

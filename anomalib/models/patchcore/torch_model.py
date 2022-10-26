@@ -216,7 +216,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         # 4. Find the distance of the patch features to each of the support samples
         # print(embedding[max_patches].size())                # [b, 384]
         # print(embedding[max_patches].unsqueeze(1).size())   # [b, 1, 384]   **
-        # print(support_samples.size())                       # [b, 9])
+        # print(support_samples.size())                       # [b, 9]
         # print(self.memory_bank[support_samples].size())     # [b, 9, 384]   **
         distances = my_cdist_p2_v2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples])
         # print(distances.size())                             # [b, 1, 9]     **

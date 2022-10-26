@@ -15,7 +15,8 @@ from omegaconf import DictConfig
 #-----------------------------#
 def load_image(image_path: str) -> np.ndarray:
     image = cv2.imread(image_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)                  # BGR2RGB
+    # print(isinstance(image, np.ndarray))              # True
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)      # BGR2RGB
     origin_height = image.shape[0]
     origin_width  = image.shape[1]
     return image, origin_height, origin_width
@@ -33,8 +34,8 @@ def get_transform(height, width, tensor=True) -> Callable:
         width (int):  缩放的宽
         tensor (bool, optional): pytorch or numpy. Defaults to True.
     """
-    mean = (0.485, 0.456, 0.406)
-    std  =(0.229, 0.224, 0.225)
+    mean = np.array((0.485, 0.456, 0.406))
+    std  = np.array((0.229, 0.224, 0.225))
     if tensor:
         return A.Compose(
             [
@@ -58,7 +59,7 @@ def get_transform(height, width, tensor=True) -> Callable:
             image /= 255.0
             image -= mean
             image /= std
-            image = image.transpose(2, 0, 1)
+            image = image.transpose(2, 0, 1)    # [h, w, c] -> [c, h, w]
             return {"image": image}
         return transform
 
@@ -93,12 +94,15 @@ def normalize_min_max(
 ) -> Union[np.ndarray, Tensor]:
     """Apply min-max normalization and shift the values such that the threshold value is centered at 0.5."""
     normalized = ((targets - threshold) / (max_val - min_val)) + 0.5
+    # 将数据限制在0~1之间
     if isinstance(targets, (np.ndarray, np.float32, np.float64)):
-        normalized = np.minimum(normalized, 1)
-        normalized = np.maximum(normalized, 0)
+        normalized = np.clip(normalized, 0, 1)    # 等价下面2行
+        # normalized = np.minimum(normalized, 1)
+        # normalized = np.maximum(normalized, 0)
     elif isinstance(targets, Tensor):
-        normalized = torch.minimum(normalized, torch.tensor(1))  # pylint: disable=not-callable
-        normalized = torch.maximum(normalized, torch.tensor(0))  # pylint: disable=not-callable
+        normalized = torch.clamp(normalized, torch.tensor(0), torch.tensor(1))  # 等价下面2行
+        # normalized = torch.minimum(normalized, torch.tensor(1))  # pylint: disable=not-callable
+        # normalized = torch.maximum(normalized, torch.tensor(0))  # pylint: disable=not-callable
     else:
         raise ValueError(f"Targets must be either Tensor or Numpy array. Received {type(targets)}")
     return normalized
@@ -171,9 +175,9 @@ def post_process(
     #------------------------------#
     #   所放到原图尺寸
     #------------------------------#
-    if "image_shape" in meta_data and anomaly_map.shape != meta_data["image_shape"]:
-        image_height = meta_data["image_shape"][0]
-        image_width = meta_data["image_shape"][1]
+    if "image_size" in meta_data and anomaly_map.shape != meta_data["image_size"]:
+        image_height = meta_data["image_size"][0]
+        image_width = meta_data["image_size"][1]
         anomaly_map = cv2.resize(anomaly_map, (image_width, image_height))
 
     # 返回图像和得分给inference.py

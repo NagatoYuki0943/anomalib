@@ -21,8 +21,8 @@ def get_openvino_model(model_path: str, CPU: bool=True, openvino_preprocess: boo
         CompileModel: 编译好的模型
     """
     # 这里乘以255相当于归一化和标准化同时计算
-    mean = (0.485 * 255, 0.456 * 255, 0.406 * 255)
-    std  = (0.229 * 255, 0.224 * 255, 0.225 * 255)
+    mean = np.array((0.485, 0.456, 0.406)) * 255
+    std  = np.array((0.229, 0.224, 0.225)) * 255
 
     # Step 1. Initialize OpenVINO Runtime core
     core = ov.Core()
@@ -81,16 +81,16 @@ def predict(model_path: str, image_path: str, param_dir: str,
     # 3.获取meta_data
     meta_data = get_meta_data(param_dir)
     # 推理时使用的图片大小
-    pred_image_height, pred_image_width = meta_data["img_size"]
-    meta_data["image_shape"] = [origin_height, origin_width]
+    infer_height, infer_width = meta_data["infer_size"]
+    meta_data["image_size"] = [origin_height, origin_width]
 
     start = time.time()
     # 4.图片预处理
     if openvino_preprocess:
         # 使用openvino数据预处理要缩放图片
-        x = cv2.resize(image, (pred_image_width, pred_image_height))
+        x = cv2.resize(image, (infer_height, infer_width))
     else:
-        transform = get_transform(pred_image_height, pred_image_width, tensor=False)
+        transform = get_transform(infer_height, infer_width, tensor=False)
         x = transform(image=image)['image']
     x = np.expand_dims(x, axis=0)
     # x = np.ones((1, 3, 224, 224))

@@ -90,7 +90,7 @@ def export(
             if isinstance(value, Tensor):
                 meta_data[key] = value.numpy().tolist()
         # save infer image size
-        meta_data['img_size'] = [*input_size]
+        meta_data['infer_size'] = [*input_size]
         json.dump(meta_data, metadata_file, ensure_ascii=False, indent=4)
 
     # important for torchscript, it has been implemented in inferencers, but not implemented in training.

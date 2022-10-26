@@ -30,7 +30,7 @@ def get_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--config", type=Path, required=True, help="Path to a config file")
     parser.add_argument("--weights", type=Path, required=True, help="Path to model weights")
-    parser.add_argument("--img_size", type=str, default=[224, 224], required=False,
+    parser.add_argument("--infer_size", type=str, default=[224, 224], required=False,
                         help="infer image size(height, width), like 224 or [224,224] or 224,224")
     parser.add_argument("--openvino", default=False, action="store_true", required=False, help="export openvino")
     args = parser.parse_args()

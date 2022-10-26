@@ -136,6 +136,7 @@ class OpenVINOInferencer(Inferencer):
         if meta_data is None:
             meta_data = self.meta_data
 
+        # 不兼容patchcore
         predictions = predictions[self.output_blob]
 
         # Initialize the result variables.

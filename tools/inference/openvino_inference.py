@@ -78,6 +78,7 @@ def infer() -> None:
     for filename in filenames:
         image = read_image(filename)
         predictions = inferencer.predict(image=image)
+        print(predictions)
         output = visualizer.visualize_image(predictions)
 
         if args.output is None and args.show is False:
@@ -86,7 +87,8 @@ def infer() -> None:
             )
 
         if args.output:
-            file_path = generate_output_image_filename(input_path=args.input, output_path=args.output)
+            #                                               args.input -> filename  根据 torch_inference.py 修改
+            file_path = generate_output_image_filename(input_path=filename, output_path=args.output)
             visualizer.save(file_path=file_path, image=output)
 
         # Show the image in case the flag is set by the user.

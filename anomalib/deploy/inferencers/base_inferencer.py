@@ -82,7 +82,7 @@ class Inferencer(ABC):
             image_arr: np.ndarray = read_image(image)
         else:  # image is already a numpy array. Kept for mypy compatibility.
             image_arr = image
-        meta_data["image_shape"] = image_arr.shape[:2]  # [2711,5351] 添加原图信息
+        meta_data["image_shape"] = image_arr.shape[:2]  # [900,900] 添加原图宽高
 
         #--------------------------------#
         #   预处理
@@ -151,8 +151,6 @@ class Inferencer(ABC):
         Returns:
             Tuple[Union[np.ndarray, Tensor], float]: Post processed predictions that are ready to be visualized and
                 predicted scores.
-
-
         """
 
         # min max normalization

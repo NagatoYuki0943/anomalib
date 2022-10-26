@@ -186,7 +186,7 @@ class TorchInferencer(Inferencer):
             anomaly_map = anomaly_map.detach().cpu().numpy()
 
         #------------------------------#
-        #   所放到原图尺寸
+        #   缩放到原图尺寸
         #------------------------------#
         if "image_shape" in meta_data and anomaly_map.shape != meta_data["image_shape"]:
             image_height = meta_data["image_shape"][0]

@@ -6,26 +6,59 @@ import time
 from read_utils import *
 
 
-def get_onnx_model(onnx_path: str, use_cuda: bool=False) -> ort.InferenceSession:
+def get_onnx_model(onnx_path: str, mode: str="cpu") -> ort.InferenceSession:
     """获取onnxruntime模型
 
     Args:
         onnx_path (str): 模型路径
-        use_cuda (bool, optional): 是否使用cuda. Defaults to False.
+        mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
 
     Returns:
         ort.InferenceSession: 模型session
     """
+    mode = mode.lower()
+    assert mode in ["cpu", "cuda", "tensorrt"], "onnxruntime only support cpu, cuda and tensorrt inference."
+    print(f"inference with {mode} !")
+
     so = ort.SessionOptions()
     so.log_severity_level = 3
-    if use_cuda:
-        model = ort.InferenceSession(onnx_path, so, providers=["CUDAExecutionProvider"], provider_options=[{"device_id": 0}])
-    else:
-        model = ort.InferenceSession(onnx_path, so, providers=["CPUExecutionProvider"])
+    providers = {
+        "cpu":  ['CPUExecutionProvider'],
+        "cuda": [
+                ('CUDAExecutionProvider', {
+                    'device_id': 0,
+                    'arena_extend_strategy': 'kNextPowerOfTwo',
+                    'gpu_mem_limit': 2 * 1024 * 1024 * 1024,
+                    'cudnn_conv_algo_search': 'EXHAUSTIVE',
+                    'do_copy_in_default_stream': True,
+                }),
+                'CPUExecutionProvider',
+            ],
+        # tensorrt
+        # https://onnxruntime.ai/docs/execution-providers/TensorRT-ExecutionProvider.html
+        # it is recommended you also register CUDAExecutionProvider to allow Onnx Runtime to assign nodes to CUDA execution provider that TensorRT does not support.
+        # set providers to ['TensorrtExecutionProvider', 'CUDAExecutionProvider'] with TensorrtExecutionProvider having the higher priority.
+        "tensorrt": [
+                ('TensorrtExecutionProvider', {
+                    'device_id': 0,
+                    'trt_max_workspace_size': 2147483648,
+                    'trt_fp16_enable': False,
+                }),
+                ('CUDAExecutionProvider', {
+                    'device_id': 0,
+                    'arena_extend_strategy': 'kNextPowerOfTwo',
+                    'gpu_mem_limit': 2 * 1024 * 1024 * 1024,
+                    'cudnn_conv_algo_search': 'EXHAUSTIVE',
+                    'do_copy_in_default_stream': True,
+                })
+            ]
+    }[mode]
+
+    model = ort.InferenceSession(onnx_path, sess_options=so, providers=providers)
     return model
 
 
-def predict(model_path: str, image_path: str, param_dir: str, save_img_dir: str, use_cuda: bool=False) -> None:
+def predict(model_path: str, image_path: str, param_dir: str, save_img_dir: str, mode: str="cpu") -> None:
     """预测单张图片
 
     Args:
@@ -33,10 +66,10 @@ def predict(model_path: str, image_path: str, param_dir: str, save_img_dir: str,
         image_path (str):   图片路径
         param_dir (str):    超参数路径
         save_img_dir (str): 保存图片路径
-        use_cuda (bool, optional): 是否使用cuda. Defaults to False.
+        mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
     """
     # 1.读取模型
-    onnx_model = get_onnx_model(model_path, use_cuda)
+    onnx_model = get_onnx_model(model_path, mode)
 
     # 2.打开图片
     image, origin_height, origin_width = load_image(image_path)
@@ -44,12 +77,12 @@ def predict(model_path: str, image_path: str, param_dir: str, save_img_dir: str,
     # 3.获取meta_data
     meta_data = get_meta_data(param_dir)
     # 推理时使用的图片大小
-    pred_image_height, pred_image_width = meta_data["img_size"]
-    meta_data["image_shape"] = [origin_height, origin_width]
+    infer_height, infer_width = meta_data["infer_size"]
+    meta_data["image_size"] = [origin_height, origin_width]
 
     start = time.time()
     # 4.图片预处理
-    transform = get_transform(pred_image_height, pred_image_width, tensor=False)
+    transform = get_transform(infer_height, infer_width, tensor=False)
     x = transform(image=image)
     x = np.expand_dims(x['image'], axis=0)
     # x = np.ones((1, 3, 224, 224))
@@ -77,4 +110,4 @@ if __name__ == "__main__":
     model_path   = "./results/patchcore/mvtec/bottle-cls/optimization/model.onnx"
     param_dir    = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
     save_img_dir = "./results/patchcore/mvtec/bottle-cls/onnx_output.jpg"
-    predict(model_path, image_path, param_dir, save_img_dir, use_cuda=False)
+    predict(model_path, image_path, param_dir, save_img_dir, mode="cpu")
