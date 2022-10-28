@@ -157,6 +157,7 @@ def multi(model_path: str, image_dir: str, param_dir: str,
     imgs = [img for img in imgs if img.endswith(("jpg", "jpeg", "png", "bmp"))]
 
     infer_times: list[float] = []
+    scores: list[float] = []
     # 批量推理
     for img in imgs:
         # 4.拼接图片路径
@@ -196,6 +197,7 @@ def multi(model_path: str, image_dir: str, param_dir: str,
         output, pred_score = post(anomaly_map, pred_score, image, meta_data)
         end = time.time()
         infer_times.append(end - start)
+        scores.append(pred_score)
 
         print("pred_score:", pred_score)    # 0.8885372877120972
         print("infer time:", end - start)
@@ -206,6 +208,7 @@ def multi(model_path: str, image_dir: str, param_dir: str,
             cv2.imwrite(save_path, output)
 
     print("avg infer time: ", mean(infer_times))
+    draw_score(scores, save_dir)
 
 
 if __name__ == '__main__':
@@ -215,5 +218,9 @@ if __name__ == '__main__':
     param_dir  = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
     save_path  = "./results/patchcore/mvtec/bottle-cls/openvino_output.jpg"
     save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
-    single(model_path, image_path, param_dir, save_path, CPU=True, openvino_preprocess=True)
-    # multi(model_path, image_dir, param_dir, save_dir, CPU=True, openvino_preprocess=True)
+    # image_dir  = "./datasets/images/abnormal"
+    # model_path = "./results/patchcore/custom/optimization/openvino/model.xml"
+    # param_dir  = "./results/patchcore/custom/optimization/meta_data.json"
+    # save_dir   = "./results/patchcore/custom/result"
+    # single(model_path, image_path, param_dir, save_path, CPU=True, openvino_preprocess=True)
+    multi(model_path, image_dir, param_dir, save_dir, CPU=True, openvino_preprocess=True)

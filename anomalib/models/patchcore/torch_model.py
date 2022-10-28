@@ -164,9 +164,9 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             sampling_ratio (float): Coreset sampling ratio
         """
 
-        # Coreset Subsampling   torch.Size([131072, 384])           0.1
+        # Coreset Subsampling   torch.Size([163850, 384])           0.1
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
-        coreset = sampler.sample_coreset()  # torch.Size([13107, 384])  下采样到0.1倍
+        coreset = sampler.sample_coreset()  # torch.Size([16385, 384])  下采样到0.1倍
         # 将下采样1/10的数据存储起来，放到menory_bank中
         self.memory_bank = coreset
 
@@ -182,7 +182,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         # 代表将图片分为4096个点，每个点都进行错误预测
-        # print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
+        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
         distances = my_cdist_p2_v2(embedding, self.memory_bank)  # euclidean norm
         patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations

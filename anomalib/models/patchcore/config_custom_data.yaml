@@ -28,12 +28,12 @@ dataset:
 model:
   name: patchcore
   backbone: resnet18  # wide_resnet50_2 resnet18
+  pre_trained: true
   layers:
     - layer2
     - layer3
-  coreset_sampling_ratio: 0.1  # 0.1 -> 0.05
-  num_neighbors: 9 # 9 -> 15
-  # weight_file: weights/model.ckpt
+  coreset_sampling_ratio: 0.2 # 0.1 —> 0.2
+  num_neighbors: 9
   normalization_method: min_max # options: [null, min_max, cdf]
 
 metrics:
@@ -64,7 +64,7 @@ logging:
   log_graph: true # Logs the model graph to respective logger.
 
 optimization:
-  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
+  export_mode: openvino # options: onnx, openvino
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:

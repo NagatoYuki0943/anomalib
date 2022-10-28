@@ -8,6 +8,8 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from typing import Union, Dict, Tuple, Optional
 from omegaconf import DictConfig
+from matplotlib import pyplot as plt
+import os
 
 
 #-----------------------------#
@@ -296,11 +298,53 @@ def post(anomaly_map: Union[Tensor, np.ndarray],
     return output, pred_score
 
 
+def draw_score(scores: list, save_dir: str):
+    """分数画图
+
+    Args:
+        scores (list): 分数列表
+        save_dir (str): 保存的路径
+    """
+    # x轴
+    x_ticks = np.arange(1, len(scores)+1, step=1, dtype=np.int)
+    y_ticks = np.arange(0, 1.1, step=0.1)
+
+    # 20个数据宽度为16
+    width = len(scores) / 24 * 16
+    plt.figure(figsize=(width, 8))
+    #设置xy显示刻度
+    plt.xticks(x_ticks)
+    plt.yticks(y_ticks)
+
+    # 设置y轴范围
+    plt.ylim([0, 1])
+
+    # 添加网格显示
+    # True 显示线
+    # linestyle 线的风格
+    # alpha 透明度
+    plt.grid(True, linestyle="--", alpha = 0.5)
+
+    plt.scatter(x_ticks, scores, label='score')
+
+    # 显示图例
+    plt.legend(loc="best")
+
+    # 数字表示
+    for x, y in zip(x_ticks, scores):
+        plt.text(x-0.3, y-0.03, "{:.4f}".format(y))
+
+    plt.savefig(os.path.join(save_dir, "score.png"))
+    plt.show()
+
+
 if __name__ == "__main__":
-    image, origin_height, origin_width = load_image("./datasets/MVTec/bottle/test/broken_large/000.png")
-    tensor_transform = get_transform(224, 224, True)
-    numpy_transform = get_transform(224, 224, False)
-    t = tensor_transform(image=image)
-    print(t['image'].shape)
-    n = numpy_transform(image)
-    print(n['image'].shape)
+    # image, origin_height, origin_width = load_image("./datasets/MVTec/bottle/test/broken_large/000.png")
+    # tensor_transform = get_transform(224, 224, True)
+    # numpy_transform = get_transform(224, 224, False)
+    # t = tensor_transform(image=image)
+    # print(t['image'].shape)
+    # n = numpy_transform(image)
+    # print(n['image'].shape)
+
+    draw_score([0.1, 0.4, 0.345, 0.8, 0.8, 0.3, 0.3, 0.4, 0.6, 0.5, 0.3, 0.4, 1, 0.9], "./results")
