@@ -6,7 +6,7 @@ from torch import Tensor
 from typing import Callable, Union
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from typing import Union, Dict, Tuple, Optional
+from typing import Union, Dict, Optional
 from omegaconf import DictConfig
 from matplotlib import pyplot as plt
 import os
@@ -55,7 +55,7 @@ def get_transform(height, width, tensor=True) -> Callable:
         #     ]
         # )
     else:
-        def transform(image: np.ndarray):
+        def transform(image: np.ndarray) -> np.ndarray:
             image = cv2.resize(image, [width, height])
             image = image.astype(np.float32)
             image /= 255.0
@@ -102,9 +102,11 @@ def normalize_min_max(
         # normalized = np.minimum(normalized, 1)
         # normalized = np.maximum(normalized, 0)
     elif isinstance(targets, Tensor):
-        normalized = torch.clamp(normalized, torch.tensor(0), torch.tensor(1))  # 等价下面2行
-        # normalized = torch.minimum(normalized, torch.tensor(1))  # pylint: disable=not-callable
-        # normalized = torch.maximum(normalized, torch.tensor(0))  # pylint: disable=not-callable
+        min = torch.tensor(0).to(normalized.device)
+        max = torch.tensor(1).to(normalized.device)
+        normalized = torch.clamp(normalized, min, max)  # 等价下面2行
+        # normalized = torch.minimum(normalized, max)  # pylint: disable=not-callable
+        # normalized = torch.maximum(normalized, min)  # pylint: disable=not-callable
     else:
         raise ValueError(f"Targets must be either Tensor or Numpy array. Received {type(targets)}")
     return normalized
@@ -118,7 +120,7 @@ def normalize(
     anomaly_maps: Union[Tensor, np.ndarray],
     pred_scores: Union[Tensor, np.float32],
     meta_data: Union[Dict, DictConfig],
-) -> Tuple[Union[np.ndarray, Tensor], float]:
+) -> tuple[Union[np.ndarray, Tensor], float]:
     """Applies normalization and resizes the image.
 
     Args:
@@ -152,7 +154,7 @@ def post_process(
     anomaly_map: Union[Tensor, np.ndarray],
     pred_score: Union[Tensor, np.float32],
     meta_data: Optional[Union[Dict, DictConfig]] = None
-) -> Tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float]:
     """Post process the output predictions.
         这里返回的结果和inference的图像结果有些许不同,小数点后几位不同,不过得分相同
     Args:

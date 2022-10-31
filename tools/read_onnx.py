@@ -16,11 +16,12 @@ print(ort.get_device())
 # GPU
 
 
-def get_onnx_model(onnx_path: str, mode: str="cpu") -> ort.InferenceSession:
+def get_onnx_model(onnx_path: str, meta_data: dict, mode: str="cpu") -> ort.InferenceSession:
     """获取onnxruntime模型
 
     Args:
-        onnx_path (str): 模型路径
+        onnx_path (str):    模型路径
+        meta_data (dict):   超参数
         mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
 
     Returns:
@@ -67,53 +68,78 @@ def get_onnx_model(onnx_path: str, mode: str="cpu") -> ort.InferenceSession:
     }[mode]
 
     model = ort.InferenceSession(onnx_path, sess_options=so, providers=providers)
+
+    # 预热模型
+    infer_height, infer_width = meta_data["infer_size"]
+    x = np.zeros((1, 3, infer_height, infer_width), dtype=np.float32)
+    model.run(None, {model.get_inputs()[0].name: x})
+
     return model
 
 
-def single(model_path: str, image_path: str, param_dir: str, save_path: str, mode: str="cpu") -> None:
-    """预测单张图片
+def infer(onnx_model: ort.InferenceSession, image: np.ndarray, meta_data: dict) -> tuple[np.ndarray, float]:
+    """推理单张图片
 
     Args:
-        model_path (str):    模型路径
-        image_path (str):    图片路径
-        param_dir (str):     超参数路径
-        save_path (str): 保存图片路径
-        mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
+        onnx_model (ort.InferenceSession):  模型
+        image (np.ndarray):                 图片
+        meta_data (dict):                   超参数
+
+    Returns:
+        tuple[np.ndarray, float]:   热力图和得分
     """
-    # 1.读取模型
-    onnx_model = get_onnx_model(model_path, mode)
-
-    # 2.获取meta_data
-    meta_data = get_meta_data(param_dir)
-
-    # 3.打开图片
-    image, origin_height, origin_width = load_image(image_path)
+    # 1.图片预处理
     # 推理时使用的图片大小
     infer_height, infer_width = meta_data["infer_size"]
-    # 保存原图宽高
-    meta_data["image_size"] = [origin_height, origin_width]
-
-    start = time.time()
-    # 4.图片预处理
     transform = get_transform(infer_height, infer_width, tensor=False)
     x = transform(image=image)
     x = np.expand_dims(x['image'], axis=0)
     # x = np.ones((1, 3, 224, 224))
     x = x.astype(dtype=np.float32)
 
-    # 5.预测得到热力图和概率
+    # 2.推理
     inputs = onnx_model.get_inputs()
     input_name1 = inputs[0].name
     results = onnx_model.run(None, {input_name1: x})
     anomaly_map, pred_score = results
     print("pred_score:", pred_score)    # 3.1183257
 
-    # 6.后处理,归一化热力图和概率,保存图片
+    # 3.后处理,归一化热力图和概率,保存图片
     output, pred_score = post(anomaly_map, pred_score, image, meta_data)
+
+    return output, pred_score
+
+
+def single(model_path: str, image_path: str, param_dir: str, save_path: str, mode: str="cpu") -> None:
+    """预测单张图片
+
+    Args:
+        model_path (str):   模型路径
+        image_path (str):   图片路径
+        param_dir (str):    超参数路径
+        save_path (str):    保存图片路径
+        mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
+    """
+    # 1.获取meta_data
+    meta_data = get_meta_data(param_dir)
+
+    # 2.读取模型
+    onnx_model = get_onnx_model(model_path, meta_data, mode)
+
+    # 3.打开图片
+    image, origin_height, origin_width = load_image(image_path)
+    # 保存原图宽高
+    meta_data["image_size"] = [origin_height, origin_width]
+
+    # 4.推理
+    start = time.time()
+    output, pred_score = infer(onnx_model, image, meta_data)
     end = time.time()
 
     print("pred_score:", pred_score)    # 0.8885370492935181
     print("infer time:", end - start)
+
+    # 5.保存图片
     cv2.imwrite(save_path, output)
 
 
@@ -134,12 +160,11 @@ def multi(model_path: str, image_dir: str, param_dir: str, save_dir: str=None, m
             print(f"mkdir {save_dir}")
     else:
         print("保存路径为None,不会保存图片")
-
-    # 1.读取模型
-    onnx_model = get_onnx_model(model_path, mode)
-
-    # 2.获取meta_data
+    # 1.获取meta_data
     meta_data = get_meta_data(param_dir)
+
+    # 2.读取模型
+    onnx_model = get_onnx_model(model_path, meta_data, mode)
 
     # 3.获取文件夹中图片
     imgs = os.listdir(image_dir)
@@ -154,36 +179,20 @@ def multi(model_path: str, image_dir: str, param_dir: str, save_dir: str=None, m
 
         # 5.打开图片
         image, origin_height, origin_width = load_image(image_path)
-        # 推理时使用的图片大小
-        infer_height, infer_width = meta_data["infer_size"]
         # 保存原图宽高
         meta_data["image_size"] = [origin_height, origin_width]
 
+        # 6.推理
         start = time.time()
-        # 6.图片预处理
-        transform = get_transform(infer_height, infer_width, tensor=False)
-        x = transform(image=image)
-        x = np.expand_dims(x['image'], axis=0)
-        # x = np.ones((1, 3, 224, 224))
-        x = x.astype(dtype=np.float32)
-
-        # 7.预测得到热力图和概率
-        inputs = onnx_model.get_inputs()
-        input_name1 = inputs[0].name
-        results = onnx_model.run(None, {input_name1: x})
-        anomaly_map, pred_score = results
-        print("pred_score:", pred_score)    # 3.1183257
-
-        # 8.后处理,归一化热力图和概率,保存图片
-        output, pred_score = post(anomaly_map, pred_score, image, meta_data)
+        output, pred_score = infer(onnx_model, image, meta_data)
         end = time.time()
+
         infer_times.append(end - start)
         scores.append(pred_score)
-
         print("pred_score:", pred_score)    # 0.8885370492935181
         print("infer time:", end - start)
 
-        # 9.保存图片
+        # 7.保存图片
         if save_dir is not None:
             save_path = os.path.join(save_dir, img)
             cv2.imwrite(save_path, output)
@@ -199,5 +208,5 @@ if __name__ == "__main__":
     param_dir  = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
     save_path  = "./results/patchcore/mvtec/bottle-cls/onnx_output.jpg"
     save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
-    # single(model_path, image_path, param_dir, save_path, mode="cpu")
-    multi(model_path, image_dir, param_dir, save_dir, mode="cpu")
+    single(model_path, image_path, param_dir, save_path, mode="cuda")
+    # multi(model_path, image_dir, param_dir, save_dir, mode="cuda")

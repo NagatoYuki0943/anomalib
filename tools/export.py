@@ -35,13 +35,13 @@ def get_args() -> Namespace:
     parser.add_argument("--openvino", default=False, action="store_true", required=False, help="export openvino")
     args = parser.parse_args()
 
-    args.img_size = eval(args.img_size)
+    args.infer_size = eval(args.infer_size)
     # 如果宽高为整数,转换为数组
-    if isinstance(args.img_size, int):
-        args.img_size = [args.img_size, args.img_size]
+    if isinstance(args.infer_size, int):
+        args.infer_size = [args.infer_size, args.infer_size]
     # tuple转换为list
-    if isinstance(args.img_size, tuple):
-        args.img_size = list(args.img_size)
+    if isinstance(args.infer_size, tuple):
+        args.infer_size = list(args.infer_size)
 
     return args
 
@@ -59,7 +59,7 @@ def _export() -> None:
     # print(type(model.model))                          # anomalib.models.patchcore.torch_model.PatchcoreModel
     # print(inferencer.model.model.memory_bank.size())  # [16385, 384]
 
-    input_size = args.img_size                          # 推理图片大小
+    input_size = args.infer_size                          # 推理图片大小
     export_root = args.weights.parent.parent            # weights的上一层目录
     openvino = "openvino" if args.openvino else None    # 是否导出openvino
     export_dir = "export"                               # 存储路径在模型路径上层相邻的export文件夹
