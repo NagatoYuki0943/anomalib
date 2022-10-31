@@ -40,7 +40,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
 
         # 模型返回layer2和layer3的输出
         self.feature_extractor = FeatureExtractor(backbone=self.backbone, pre_trained=pre_trained, layers=self.layers)
-        self.feature_pooler = torch.nn.AvgPool2d(3, 1, 1)
+        self.feature_pooler = torch.nn.AvgPool2d(3, 1, 1, count_include_pad=False)
         self.anomaly_map_generator = AnomalyMapGenerator(input_size=input_size)
 
         #-----------------------------------------------#
