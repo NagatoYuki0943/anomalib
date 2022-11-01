@@ -19,9 +19,7 @@ def load_image(image_path: str) -> np.ndarray:
     image = cv2.imread(image_path)
     # print(isinstance(image, np.ndarray))              # True
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)      # BGR2RGB
-    origin_height = image.shape[0]
-    origin_width  = image.shape[1]
-    return image, origin_height, origin_width
+    return image
 
 
 #-----------------------------#
@@ -266,38 +264,6 @@ def add_label(prediction: np.ndarray, scores: float, font: int = cv2.FONT_HERSHE
     cv2.putText(label_patch, text, (0, baseline // 2 + height), font, font_size, 0, lineType=cv2.LINE_AA)
     prediction[: baseline + height, : baseline + width] = label_patch
     return prediction
-
-
-def post(anomaly_map: Union[Tensor, np.ndarray],
-         pred_score: Union[Tensor, np.float32],
-         image: np.ndarray,
-         meta_data: dict) -> Union[np.ndarray, float]:
-    """后处理
-
-    Args:
-        anomaly_map (Union[Tensor, np.ndarray]): 热力图
-        pred_score (Union[Tensor, np.float32]): 预测分数
-        image (np.ndarray): 原图
-        meta_data (dict): meta data
-
-    Returns:
-        np.ndarray: 最终图片
-        float: 最终得分
-    """
-    # 6.预测结果后处理，包括归一化热力图和概率，所放到原图尺寸
-    anomaly_map, pred_score = post_process(anomaly_map, pred_score, meta_data)
-    # print(anomaly_map.shape)            # (900, 900)
-    # print("pred_score:", pred_score)    # 0.8933535814285278
-
-    # 7.混合原图
-    superimposed_map = superimpose_anomaly_map(anomaly_map, image)
-    # print(superimposed_map.shape)                      # (900, 900, 3)
-
-    # 8.添加标签
-    output = add_label(superimposed_map, pred_score)
-    output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
-
-    return output, pred_score
 
 
 def draw_score(scores: list, save_dir: str):
