@@ -1,4 +1,3 @@
-from math import fabs
 import os
 import openvino.runtime as ov
 from openvino.preprocess import PrePostProcessor
@@ -12,6 +11,30 @@ from statistics import mean
 
 from infer import Inference
 from read_utils import *
+
+
+"""openvino图片预处理方法
+
+# input().tensor()       有7个方法
+ppp.input().tensor().set_color_format().set_element_type().set_layout() \
+                    .set_memory_type().set_shape().set_spatial_dynamic_shape().set_spatial_static_shape()
+
+# output().tensor()      有2个方法
+ppp.output().tensor().set_layout().set_element_type()
+
+# input().preprocess()   有8个方法
+ppp.input().preprocess().convert_color().convert_element_type().mean().scale() \
+                        .convert_layout().reverse_channels().resize().custom()
+
+# output().postprocess() 有3个方法
+ppp.output().postprocess().convert_element_type().convert_layout().custom()
+
+# input().model()  只有1个方法
+ppp.input().model().set_layout()
+
+# output().model() 只有1个方法
+ppp.output().model().set_layout()
+"""
 
 
 class OVInference(Inference):
@@ -60,10 +83,11 @@ class OVInference(Inference):
             # https://docs.openvino.ai/latest/openvino_2_0_preprocessing.html
             ppp = PrePostProcessor(model)
             # 设定图片数据类型，形状，通道排布为RGB     input(0) 指的是第0个输入
-            ppp.input(0).tensor().set_element_type(Type.f32) \
-                .set_layout(Layout("NCHW")).set_color_format(ColorFormat.RGB)   # Type.u8 -> Type.f32  NHWC -> NCHW
+            ppp.input(0).tensor().set_color_format(ColorFormat.RGB) \
+                .set_element_type(Type.f32).set_layout(Layout("NCHW"))   # BGR -> RGB Type.u8 -> Type.f32  NHWC -> NCHW
             # 预处理: 改变类型,转换为RGB,减去均值,除以标准差(均值和标准差包含了归一化)
-            ppp.input(0).preprocess().convert_element_type(Type.f32).mean(mean).scale(std)
+            # ppp.input(0).preprocess().convert_color(ColorFormat.RGB).convert_element_type(Type.f32).mean(mean).scale(std)
+            ppp.input(0).preprocess().mean(mean).scale(std)
             # 指定模型输入形状
             ppp.input(0).model().set_layout(Layout("NCHW"))
             # 指定模型输出类型
