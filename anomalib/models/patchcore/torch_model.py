@@ -181,10 +181,12 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Patch scores.
             Tensor: Locations of the nearest neighbor(s).
         """
-        # 代表将图片分为4096个点，每个点都进行错误预测
-        print('nearest_neighbors', embedding.size(), self.memory_bank.size())       # [784, 384] [16385, 384] [1, 384] [16385, 384] 384代表每个点的维度(layer2和layer3拼接为384）
-        distances = my_cdist_p2_v2(embedding, self.memory_bank)  # euclidean norm
-        patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
+        distances = torch.cdist(embedding, self.memory_bank, p=2.0)  # euclidean norm
+        if n_neighbors == 1:
+            # when n_neighbors is 1, speed up computation by using min instead of topk
+            patch_scores, locations = distances.min(1)
+        else:
+            patch_scores, locations = distances.topk(k=n_neighbors, largest=False, dim=1)
         return patch_scores, locations
 
     def compute_anomaly_score(self, patch_scores: Tensor, locations: Tensor, embedding: Tensor) -> Tensor:
@@ -198,6 +200,9 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Image-level anomaly scores
         """
 
+        # Don't need to compute weights if num_neighbors is 1
+        if self.num_neighbors == 1:
+            return patch_scores.amax(1)
         # 1. Find the patch with the largest distance to it's nearest neighbor in each image
         max_patches = torch.argmax(patch_scores, dim=1)         # (m^test,* in the paper)
         # print(max_patches.size())                           # [b]
@@ -223,7 +228,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         # exit()
 
         # 5. Apply softmax to find the weights
-        weights = (1 - F.softmax(distances.squeeze(), dim=-1))[..., 0]
+        weights = (1 - F.softmax(distances.squeeze(), 1))[..., 0]
         # 6. Apply the weight factor to the score
         score = weights * score  # S^* in the paper
         return score
