@@ -1,9 +1,9 @@
 dataset:
   name: custom
   format: folder
-  path: ./datasets/some
-  normal_dir: 0.normal      # name of the folder containing normal images.
-  abnormal_dir: 1.abnormal  # name of the folder containing abnormal images.
+  path: ./datasets/images
+  normal_dir: normal        # name of the folder containing normal images.
+  abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
   task: classification      # classification or segmentation
   image_size: 256
