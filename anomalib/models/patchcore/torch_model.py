@@ -209,11 +209,10 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         # print(max_patches.size())                           # [b]
 
         # 2. Find the distance of the patch to it's nearest neighbor, and the location of the nn in the membank
-        score = patch_scores[torch.arange(len(patch_scores)), max_patches]  # s in the paper
+        score = patch_scores[torch.arange(patch_scores.shape[0]), max_patches]  # s in the paper
         # print(score.size())                                 # [b]
-        nn_index = locations[torch.arange(len(patch_scores)), max_patches]  # m^* in the paper
+        nn_index = locations[torch.arange(patch_scores.shape[0]), max_patches]  # m^* in the paper
         # print(nn_index.size())                              # [b]
-
         # 3. Find the support samples of the nearest neighbor in the membank
         nn_sample = self.memory_bank[nn_index, :]
         # print(nn_sample.size())                             # [b, 384]
@@ -229,7 +228,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         # exit()
 
         # 5. Apply softmax to find the weights
-        weights = (1 - F.softmax(distances.squeeze(), -1))[..., 0]
+        weights = (1 - F.softmax(distances.squeeze(1), 1))[..., 0]
         # 6. Apply the weight factor to the score
         score = weights * score  # S^* in the paper
         return score
