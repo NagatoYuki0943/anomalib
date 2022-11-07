@@ -218,10 +218,6 @@ if __name__ == "__main__":
     param_dir  = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
     save_path  = "./results/patchcore/mvtec/bottle-cls/onnx_output.jpg"
     save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
+    single(model_path, image_path, param_dir, save_path, mode="cuda")
+    multi(model_path, image_dir, param_dir, save_dir, mode="cuda")
 
-    image_dir  = "./datasets/images/abnormal"
-    model_path = "./results/patchcore/custom 384/train_val/optimization/model.onnx"
-    param_dir  = "./results/patchcore/custom 384/train_val/optimization/meta_data.json"
-    save_dir   = "./results/patchcore/custom 384/train_val/result"
-    # single(model_path, image_path, param_dir, save_path, mode="cuda")
-    multi(model_path, image_dir, param_dir, save_dir, mode="cpu")

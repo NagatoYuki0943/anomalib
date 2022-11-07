@@ -16,7 +16,6 @@ from anomalib.models.components import (
 )
 from anomalib.models.patchcore.anomaly_map import AnomalyMapGenerator
 from anomalib.pre_processing import Tiler
-import time
 
 
 class PatchcoreModel(DynamicBufferModule, nn.Module):
@@ -82,16 +81,16 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         #   拼接多层输出
         #----------------------------#
         features = {layer: self.feature_pooler(feature) for layer, feature in features.items()}
-        embedding = self.generate_embedding(features)   # [1, 384, 64, 64]
+        embedding = self.generate_embedding(features)   # [B, 384, 28, 28]
 
         if self.tiler:
             embedding = self.tiler.untile(embedding)
 
         batch_size, _, width, height = embedding.shape
         #----------------------------#
-        #   [1, 384, 64, 64] -> [64*64, 384]
+        #   [B, 384, 28, 28] -> [B*28*28, 384]
         #----------------------------#
-        embedding = self.reshape_embedding(embedding)   # [64*64, 384]      # 代表将图片分为4096个点，每个点都进行错误预测
+        embedding = self.reshape_embedding(embedding)   # [B*28*28, 384]      # 代表将图片分为4096个点，每个点都进行错误预测
 
         #--------------------------------------------#
         #   训练直接返回，验证则绘制热力图并计算得分
@@ -127,12 +126,12 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Embedding vector
         """
 
-        embeddings = features[self.layers[0]]   # layer2 [1, 128, 28, 28]
-        for layer in self.layers[1:]:           # layer3 [1, 256, 14, 14]
+        embeddings = features[self.layers[0]]   # layer2 [B, 128, 28, 28]
+        for layer in self.layers[1:]:           # layer3 [B, 256, 14, 14]
             layer_embedding = features[layer]
             layer_embedding = F.interpolate(layer_embedding, size=embeddings.shape[-2:], mode="nearest")
             embeddings = torch.cat((embeddings, layer_embedding), 1)
-        # print("embeddings:", embeddings.size()) # [1, 384, 28, 28]
+        # print("embeddings:", embeddings.size()) # [B, 384, 28, 28]
         return embeddings
 
     @staticmethod
@@ -149,7 +148,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Reshaped embedding tensor.
         """
         embedding_size = embedding.size(1)  # 384
-        embedding = embedding.permute(0, 2, 3, 1).reshape(-1, embedding_size) # [64*64, 384]
+        embedding = embedding.permute(0, 2, 3, 1).reshape(-1, embedding_size) # [B*28*28, 384]
         # print('embedding', embedding.size())
         return embedding
 
