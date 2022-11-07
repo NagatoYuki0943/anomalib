@@ -6,6 +6,9 @@ dataset:
   abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
   task: classification      # classification or segmentation
+  mask: null                # optional
+  extensions: null
+  split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
   image_size: 256
   train_batch_size: 32
   test_batch_size: 32
@@ -14,7 +17,7 @@ dataset:
   transform_config:
     train: null
     val: null
-  create_validation_set: false
+  create_validation_set: true
   tiling:
     apply: true
     tile_size: 64
@@ -46,7 +49,7 @@ metrics:
     - F1Score
     - AUROC
   threshold:
-    method: adaptive #options: [adaptive, manual]
+    method: adaptive # options: [adaptive, manual]
     manual_image: null
 
 visualization:
@@ -65,7 +68,7 @@ logging:
   log_graph: true # Logs the model graph to respective logger.
 
 optimization:
-  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
+  export_mode: null # options: onnx, openvino. Exporting openvino will first export onnx.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:

@@ -6,6 +6,9 @@ dataset:
   abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
   task: classification      # classification or segmentation
+  mask: null                # optional
+  extensions: null
+  split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
   image_size: 256
   train_batch_size: 16
   test_batch_size: 16
@@ -15,7 +18,7 @@ dataset:
   transform_config:
     train: null
     val: null
-  create_validation_set: false
+  create_validation_set: true
 
 model:
   name: cflow
@@ -33,7 +36,7 @@ model:
   lr: 0.0001
   early_stopping:
     patience: 2
-    metric: pixel_AUROC
+    metric: image_AUROC
     mode: max
   normalization_method: min_max # options: [null, min_max, cdf]
 
@@ -65,7 +68,7 @@ logging:
   log_graph: true # Logs the model graph to respective logger.
 
 optimization:
-  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
+  export_mode: null # options: onnx, openvino. Exporting openvino will first export onnx.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:

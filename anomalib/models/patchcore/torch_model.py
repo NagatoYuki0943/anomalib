@@ -74,7 +74,6 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         #   得到backhone的多层输出
         #----------------------------#
         # 不需要训练
-        self.feature_extractor.eval()
         with torch.no_grad():
             features = self.feature_extractor(input_tensor)
 

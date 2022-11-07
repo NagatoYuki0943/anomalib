@@ -11,7 +11,7 @@ dataset:
   transform_config:
     train: null
     val: null
-  create_validation_set: false
+  create_validation_set: true
   tiling:
     apply: false
     tile_size: null
