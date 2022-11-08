@@ -219,5 +219,5 @@ if __name__ == "__main__":
     save_path  = "./results/patchcore/mvtec/bottle-cls/onnx_output.jpg"
     save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
     single(model_path, image_path, param_dir, save_path, mode="cuda")
-    multi(model_path, image_dir, param_dir, save_dir, mode="cuda")
+    # multi(model_path, image_dir, param_dir, save_dir, mode="cuda")
 
