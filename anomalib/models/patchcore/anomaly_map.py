@@ -31,13 +31,14 @@ class AnomalyMapGenerator(nn.Module):
             Pixel Level Anomaly Heatmap.
 
         Args:
-            patch_scores (torch.Tensor): Patch-level anomaly scores                 [64*64, 9]
-            feature_map_shape (torch.Size): 2-D feature map shape (width, height)   [64, 64]
+            patch_scores (torch.Tensor): Patch-level anomaly scores                 [28*28, 9]
 
         Returns:
             torch.Tensor: Map of the pixel-level anomaly scores
         """
-        anomaly_map = F.interpolate(patch_scores, size=(self.input_size[0], self.input_size[1]))
+        # scale_factor代替size
+        scale_factor = [self.input_size[0] / patch_scores.shape[-2], self.input_size[1] / patch_scores.shape[-1]]
+        anomaly_map = F.interpolate(patch_scores, scale_factor=scale_factor)
         anomaly_map = self.blur(anomaly_map)
 
         return anomaly_map
