@@ -27,7 +27,7 @@ dataset:
 
 model:
   name: patchcore
-  backbone: resnet50  # wide_resnet50_2 resnet18 resnet50
+  backbone: resnet18  # resnet18 resnet50 wide_resnet50_2
   pre_trained: true
   layers:
     - layer2

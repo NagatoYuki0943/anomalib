@@ -19,7 +19,7 @@ class TorchscriptInference(Inference):
         super().__init__()
         self.use_cuda = use_cuda
         # 超参数
-        self.meta     = get_meta_data(meta_path)
+        self.meta = get_meta_data(meta_path)
         # 载入模型
         self.model = self.get_script_model(model_path)
         self.model.eval()
@@ -167,9 +167,9 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/patchcore/mvtec/bottle-cls/optimization/model_gpu.torchscript"
-    param_dir  = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle-cls/torchscript_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
+    model_path = "./results/patchcore/mvtec/bottle/run/optimization/model_gpu.torchscript"
+    param_dir  = "./results/patchcore/mvtec/bottle/run/optimization/meta_data.json"
+    save_path  = "./results/patchcore/mvtec/bottle/run/torchscript_output.jpg"
+    save_dir   = "./results/patchcore/mvtec/bottle/run/result"
     single(model_path, image_path, param_dir, save_path, use_cuda=True)   # 注意: 使用cuda时要使用gpu模型
     # multi(model_path, image_dir, param_dir, save_dir, use_cuda=True)    # 注意: 使用cuda时要使用gpu模型

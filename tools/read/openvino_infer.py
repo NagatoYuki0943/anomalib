@@ -43,7 +43,7 @@ class OVInference(Inference):
         Args:
             model_path (str): 模型路径
             meta_path (str): 超参数路径
-            mode (str, optional): CPU or GPU. Defaults to CPU.
+            mode (str, optional): CPU or GPU or GPU.0  Defaults to CPU. 具体可以使用设备可以运行 samples/python/hello_query_device/hello_query_device.py 文件查看
             openvino_preprocess (bool, optional): 是否使用openvino数据预处理. Defaults to False.
         """
         super().__init__()
@@ -250,9 +250,9 @@ def multi(model_path: str, image_dir: str, meta_path: str,
 if __name__ == '__main__':
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/patchcore/mvtec/bottle-cls/optimization/openvino/model.xml"
-    meta_path  = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle-cls/openvino_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
+    model_path = "./results/patchcore/mvtec/bottle/run/optimization/openvino/model.xml"
+    meta_path  = "./results/patchcore/mvtec/bottle/run/optimization/meta_data.json"
+    save_path  = "./results/patchcore/mvtec/bottle/run/openvino_output.jpg"
+    save_dir   = "./results/patchcore/mvtec/bottle/run/result"
     single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
     # multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)

@@ -214,10 +214,9 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, m
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/patchcore/mvtec/bottle-cls/optimization/model.onnx"
-    param_dir  = "./results/patchcore/mvtec/bottle-cls/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle-cls/onnx_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle-cls/result"
+    model_path = "./results/patchcore/mvtec/bottle/run/optimization/model.onnx"
+    param_dir  = "./results/patchcore/mvtec/bottle/run/optimization/meta_data.json"
+    save_path  = "./results/patchcore/mvtec/bottle/run/onnx_output.jpg"
+    save_dir   = "./results/patchcore/mvtec/bottle/run/result"
     single(model_path, image_path, param_dir, save_path, mode="cuda")
     # multi(model_path, image_dir, param_dir, save_dir, mode="cuda")
-
