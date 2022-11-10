@@ -3,11 +3,11 @@ dataset:
   format: mvtec
   path: ./datasets/MVTec
   task: classification # classification or segmentation
-  category: bottle
+  category: hazelnut
   image_size: 224
   train_batch_size: 1
   test_batch_size: 1
-  num_workers: 8
+  num_workers: 2
   transform_config:
     train: null
     val: null

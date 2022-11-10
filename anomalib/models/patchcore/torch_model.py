@@ -144,7 +144,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         [Batch, Embedding, Patch, Patch] to [Batch*Patch*Patch, Embedding]
 
         Args:
-            embedding (Tensor): Embedding tensor extracted from CNN features.   [1, 384, 64, 64]
+            embedding (Tensor): Embedding tensor extracted from CNN features.   [1, 384, 28, 28]
 
         Returns:
             Tensor: Reshaped embedding tensor.
@@ -155,7 +155,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         return embedding
 
     def subsample_embedding(self, embedding: Tensor, sampling_ratio: float) -> None:
-        """训练过程中会将所有的类似[64*64, 384]数据存储起来，这里将它下采样到 10%放到memeory_bank
+        """训练过程中会将所有的类似[28*28, 384]数据存储起来，这里将它下采样10%放到memeory_bank
             会在验证之前调用，训练一轮后会调用这个函数
             Subsample embedding based on coreset sampling and store to memory.
 
@@ -163,6 +163,11 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             embedding (np.ndarray): Embedding tensor from the CNN
             sampling_ratio (float): Coreset sampling ratio
         """
+        # 允许的embedding最大长度,超过最大长度就 20000 * 1600(在320分辨率下的dim) ort不会报错
+        embedding_max_len = 20000
+        embedding_len     = int(embedding.size(0))
+        if embedding_len * sampling_ratio > embedding_max_len:
+            sampling_ratio = embedding_max_len / embedding_len
 
         # Coreset Subsampling   torch.Size([163850, 384])           0.1
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
