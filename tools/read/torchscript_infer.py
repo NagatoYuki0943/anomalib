@@ -56,7 +56,7 @@ class TorchscriptInference(Inference):
             image (np.ndarray): 图片
 
         Returns:
-            tuple[np.ndarray, float]: 热力图和得分
+            tuple[np.ndarray, float]: hotmap, score
         """
         # 1.保存原图宽高
         self.meta["image_size"] = [image.shape[0], image.shape[1]]
@@ -76,10 +76,10 @@ class TorchscriptInference(Inference):
             anomaly_map, pred_score = self.model(x)
         print("pred_score:", pred_score)    # 3.1183
 
-        # 3.后处理,归一化热力图和概率,保存图片
-        output, pred_score = self.post(anomaly_map, pred_score, image)
+        # 3.后处理,归一化热力图和概率
+        anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
-        return output, pred_score
+        return anomaly_map, pred_score
 
 
 def single(model_path: str, image_path: str, meta_path: str, save_path: str, use_cuda: bool=False) -> None:
@@ -100,14 +100,14 @@ def single(model_path: str, image_path: str, meta_path: str, save_path: str, use
 
     # 3.推理
     start = time.time()
-    output, pred_score = inference.infer(image)
+    anomaly_map, pred_score = inference.infer(image)
     end = time.time()
 
     print("pred_score:", pred_score)    # 0.8885370492935181
     print("infer time:", end - start)
 
     # 5.保存图片
-    cv2.imwrite(save_path, output)
+    save_image(save_path, image, anomaly_map, pred_score)
 
 
 def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cuda: bool=False) -> None:
@@ -147,7 +147,7 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
 
         # 5.推理
         start = time.time()
-        output, pred_score = inference.infer(image)
+        anomaly_map, pred_score = inference.infer(image)
         end = time.time()
 
         infer_times.append(end - start)
@@ -158,7 +158,7 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
         # 6.保存结果
         if save_dir is not None:
             save_path = os.path.join(save_dir, img)
-            cv2.imwrite(save_path, output)
+            save_image(save_path, image, anomaly_map, pred_score)
 
     print("avg infer time: ", mean(infer_times))
     draw_score(scores, save_dir)

@@ -9,6 +9,9 @@ from albumentations.pytorch import ToTensorV2
 from typing import Union, Dict, Optional
 from omegaconf import DictConfig
 from matplotlib import pyplot as plt
+from skimage import morphology
+from skimage.segmentation import find_boundaries
+from skimage.morphology import dilation
 import os
 
 
@@ -306,13 +309,74 @@ def draw_score(scores: list, save_dir: str):
     plt.show()
 
 
-if __name__ == "__main__":
-    # image, origin_height, origin_width = load_image("./datasets/MVTec/bottle/test/broken_large/000.png")
-    # tensor_transform = get_transform(224, 224, True)
-    # numpy_transform = get_transform(224, 224, False)
-    # t = tensor_transform(image=image)
-    # print(t['image'].shape)
-    # n = numpy_transform(image)
-    # print(n['image'].shape)
+# from anomalib.post_processing.post_process import compute_mask
+def compute_mask(anomaly_map: np.ndarray, threshold: float = 0.5, kernel_size: int = 4) -> np.ndarray:
+    """Compute anomaly mask via thresholding the predicted anomaly map.
 
+    Args:
+        anomaly_map (np.ndarray): Anomaly map predicted via the model
+        threshold (float): Value to threshold anomaly scores into 0-1 range.
+        kernel_size (int): Value to apply morphological operations to the predicted mask. Defaults to 4.
+
+    Returns:
+        Predicted anomaly mask
+    """
+
+    anomaly_map = anomaly_map.squeeze()
+    mask: np.ndarray = np.zeros_like(anomaly_map).astype(np.uint8)
+    mask[anomaly_map > threshold] = 1
+
+    kernel = morphology.disk(kernel_size)
+    mask = morphology.opening(mask, kernel)
+
+    mask *= 255
+
+    return mask
+
+
+def save_image(save_path: str, image: np.ndarray, anomaly_map: np.ndarray, pred_score: float, mask_thre: float = 0.5):
+    """根据热力图,mask,得分叠加并保存图片
+
+    Args:
+        save_path (str):   保存图片路径
+        image (np.ndarray): 原图
+        anomaly_map (np.ndarray): 热力图
+        pred_score (float): 预测得分
+        mask_thre (float): mask阈值. Defaults to 0.5.
+    """
+    # 1.计算mask
+    mask = compute_mask(anomaly_map, mask_thre)
+
+    # 2.计算mask外边界
+    outlines_image = image.copy()       # 深拷贝ndarray
+    boundaries = find_boundaries(mask)  # find_boundaries和dilation 返回和原图一样的 0 1 的图像(True False也可以)
+    outlines = dilation(boundaries, np.ones((3, 3)))
+    outlines_image[outlines] = [255, 0, 0]
+
+    # 3.热力图混合原图
+    superimposed_map = superimpose_anomaly_map(anomaly_map, image)
+
+    # 4.添加得分标签
+    # superimposed_map_label = add_label(superimposed_map, pred_score)
+    # superimposed_map_label = cv2.cvtColor(superimposed_map_label, cv2.COLOR_RGB2BGR)
+
+    # 5.绘图
+    figsize = (4 * 8, 8)
+    figure, axes = plt.subplots(1, 4, figsize=figsize)
+
+    axes[0].imshow(image)
+    axes[0].set_title("origin")
+    axes[1].imshow(superimposed_map)
+    axes[1].set_title("score: {:.4f}".format(pred_score))
+    axes[2].imshow(mask)
+    axes[2].set_title("mask")
+    axes[3].imshow(outlines_image)
+    axes[3].set_title("outlines")
+    # plt.show()
+    # return
+    plt.savefig(save_path)
+    plt.close()
+
+
+if __name__ == "__main__":
     draw_score([0.1, 0.4, 0.345, 0.8, 0.8, 0.3, 0.3, 0.4, 0.6, 0.5, 0.3, 0.4, 1, 0.9], "./results")
