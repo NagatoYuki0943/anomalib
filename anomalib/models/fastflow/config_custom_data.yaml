@@ -27,7 +27,7 @@ dataset:
 
 model:
   name: fastflow
-  backbone: resnet18 # options: [resnet18, wide_resnet50_2, cait_m48_448, deit_base_distilled_patch16_384]
+  backbone: resnet18 # options: [resnet18, resnet50, wide_resnet50_2, cait_m48_448, deit_base_distilled_patch16_384]
   pre_trained: true
   flow_steps: 8 # options: [8, 8, 20, 20] - for each supported backbone
   hidden_ratio: 1.0 # options: [1.0, 1.0, 0.16, 0.16] - for each supported backbone
@@ -68,7 +68,7 @@ logging:
   log_graph: true # Logs the model graph to respective logger.
 
 optimization:
-  export_mode: null # options: onnx, openvino. Exporting openvino will first export onnx.
+  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:
