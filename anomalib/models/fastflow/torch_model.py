@@ -40,9 +40,9 @@ def subnet_conv_func(kernel_size: int, hidden_ratio: float) -> Callable:
     def subnet_conv(in_channels: int, out_channels: int) -> nn.Sequential:
         hidden_channels = int(in_channels * hidden_ratio)
         return nn.Sequential(
-            nn.Conv2d(in_channels, hidden_channels, kernel_size, padding="same"),
+            nn.Conv2d(in_channels, hidden_channels, kernel_size, padding=kernel_size // 2),
             nn.ReLU(),
-            nn.Conv2d(hidden_channels, out_channels, kernel_size, padding="same"),
+            nn.Conv2d(hidden_channels, out_channels, kernel_size, padding=kernel_size // 2),
         )
 
     return subnet_conv
