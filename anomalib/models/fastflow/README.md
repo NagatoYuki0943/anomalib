@@ -26,7 +26,7 @@ All results gathered with seed `0`.
 
 **NOTE**
 
-When the numbers are produced, early stopping callback (patience: 3) is used. It might be possible to achieve higher-metrics by increasing the patience.
+When the numbers are produced, early stopping callback (patience: 20) is used. It might be possible to achieve higher-metrics by increasing the patience.
 
 ---
 

@@ -35,7 +35,7 @@ model:
   soft_permutation: false
   lr: 0.0001
   early_stopping:
-    patience: 2
+    patience: 20
     metric: image_AUROC
     mode: max
   normalization_method: min_max # options: [null, min_max, cdf]
