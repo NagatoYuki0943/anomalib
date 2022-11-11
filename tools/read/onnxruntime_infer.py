@@ -119,11 +119,20 @@ class OrtInference(Inference):
         # 2.推理
         inputs = self.model.get_inputs()
         input_name1 = inputs[0].name
-        results = self.model.run(None, {input_name1: x})
-        anomaly_map, pred_score = results
+        predictions = self.model.run(None, {input_name1: x})    # 返回值为list
+
+        # 3.解决不同模型输出问题
+        if len(predictions) == 1:
+            # 大多数模型只返回热力图
+            # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
+            anomaly_map = predictions[0]
+            pred_score  = anomaly_map.reshape(-1).max()
+        else:
+            # patchcore返回热力图和得分
+            anomaly_map, pred_score = predictions
         print("pred_score:", pred_score)    # 3.1183257
 
-        # 3.后处理,归一化热力图和概率
+        # 4.后处理,归一化热力图和概率
         anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
         return anomaly_map, pred_score

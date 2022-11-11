@@ -113,7 +113,6 @@ def normalize_min_max(
     return normalized
 
 
-
 #-----------------------------#
 #   标准化热力图和得分
 #-----------------------------#
@@ -178,7 +177,7 @@ def post_process(
         anomaly_map = anomaly_map.detach().cpu().numpy()
 
     #------------------------------#
-    #   所放到原图尺寸
+    #   缩放到原图尺寸
     #------------------------------#
     if "image_size" in meta_data and anomaly_map.shape != meta_data["image_size"]:
         image_height = meta_data["image_size"][0]
@@ -310,7 +309,7 @@ def draw_score(scores: list, save_dir: str):
 
 
 # from anomalib.post_processing.post_process import compute_mask
-def compute_mask(anomaly_map: np.ndarray, threshold: float = 0.5, kernel_size: int = 4) -> np.ndarray:
+def compute_mask(anomaly_map: np.ndarray, threshold: float = 0.5, kernel_size: int = 3) -> np.ndarray:
     """Compute anomaly mask via thresholding the predicted anomaly map.
 
     Args:

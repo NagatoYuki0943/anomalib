@@ -73,10 +73,22 @@ class TorchscriptInference(Inference):
         if self.use_cuda:
             x = x.cuda()
         with torch.inference_mode():
-            anomaly_map, pred_score = self.model(x)
+            predictions = self.model(x)     # 单个值返回Tensor,多个值返回tuple
+
+        # 3.解决不同模型输出问题
+        if isinstance(predictions, Tensor):
+            # 大多数模型只返回热力图
+            # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
+            anomaly_map = predictions.detach().cpu().numpy()
+            pred_score  = anomaly_map.reshape(-1).max()
+        else:
+            # patchcore返回热力图和得分
+            anomaly_map, pred_score = predictions
+            anomaly_map = anomaly_map.detach().cpu().numpy()
+            pred_score  = pred_score.detach().cpu().numpy()
         print("pred_score:", pred_score)    # 3.1183
 
-        # 3.后处理,归一化热力图和概率
+        # 4.后处理,归一化热力图和概率
         anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
         return anomaly_map, pred_score

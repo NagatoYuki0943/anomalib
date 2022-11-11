@@ -151,11 +151,20 @@ class OVInference(Inference):
         # results = infer_request.infer({inputs[0]: x})     # 同样支持list输入
         # results = compiled_model({inputs[0]: x})
         results = self.model([x])
-        anomaly_map = results[outputs[0]]
-        pred_score  = results[outputs[1]]
+
+        # 4.解决不同模型输出问题
+        if len(outputs) == 1:
+            # 大多数模型只返回热力图
+            # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
+            anomaly_map = results[outputs[0]]
+            pred_score  = anomaly_map.reshape(-1).max()
+        else:
+            # patchcore返回热力图和得分
+            anomaly_map = results[outputs[0]]
+            pred_score  = results[outputs[1]]
         print("pred_score:", pred_score)    # 3.1183267
 
-        # 4.后处理,归一化热力图和概率
+        # 5.后处理,归一化热力图和概率
         anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
         return anomaly_map, pred_score
