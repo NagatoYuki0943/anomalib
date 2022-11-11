@@ -5,7 +5,7 @@ dataset:
   normal_dir: normal        # name of the folder containing normal images.
   abnormal_dir: abnormal    # name of the folder containing abnormal images.
   normal_test_dir: null     # name of the folder containing normal test images.
-  task: classification      # classification or segmentation
+  task: segmentation        # classification or segmentation
   mask: null                # optional
   extensions: null
   split_ratio: 0.2          # ratio of the normal images that will be used to create a test split
@@ -48,9 +48,9 @@ metrics:
   image:
     - F1Score
     - AUROC
-  pixel:
-    - F1Score
-    - AUROC
+  # pixel:
+  #   - F1Score
+  #   - AUROC
   threshold:
     method: adaptive # options: [adaptive, manual]
     manual_image: null

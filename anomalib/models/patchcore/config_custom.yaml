@@ -2,8 +2,8 @@ dataset:
   name: mvtec #options: [mvtec, btech, folder]
   format: mvtec
   path: ./datasets/MVTec
-  task: classification # classification or segmentation
-  category: hazelnut
+  task: segmentation # classification or segmentation
+  category: toothbrush
   image_size: 224
   train_batch_size: 1
   test_batch_size: 1
@@ -22,7 +22,7 @@ dataset:
 
 model:
   name: patchcore
-  backbone: resnet18  # resnet18 resnet50 wide_resnet50_2
+  backbone: resnet50  # resnet18 resnet50 wide_resnet50_2
   pre_trained: true
   layers:
     - layer2

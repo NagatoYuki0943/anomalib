@@ -141,9 +141,9 @@ def make_dataset(
 
     # make sure all the files exist
     # samples.image_path does NOT need to be checked because we build the df based on that
-    assert samples.mask_path.apply(
-        lambda x: Path(x).exists() if x != "" else True
-    ).all(), f"missing mask files, mask_dir={mask_dir}"
+    # assert samples.mask_path.apply(
+    #     lambda x: Path(x).exists() if x != "" else True
+    # ).all(), f"missing mask files, mask_dir={mask_dir}"
 
     # Ensure the pathlib objects are converted to str.
     # This is because torch dataloader doesn't like pathlib.
