@@ -130,8 +130,9 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         for layer in self.layers[1:]:           # layer3 [B, 256, 14, 14]
             layer_embedding = features[layer]
             # scale_factor代替size
-            scale_factor = [int(embeddings.shape[-2] / layer_embedding.shape[-2]), int(embeddings.shape[-1] / layer_embedding.shape[-1])]
-            layer_embedding = F.interpolate(layer_embedding, scale_factor=scale_factor, mode="nearest")
+            # scale_factor = [int(embeddings.shape[-2] / layer_embedding.shape[-2]), int(embeddings.shape[-1] / layer_embedding.shape[-1])]
+            # layer_embedding = F.interpolate(layer_embedding, scale_factor=scale_factor, mode="nearest")
+            layer_embedding = F.interpolate(layer_embedding, size=embeddings.shape[-2:], mode="nearest")
             embeddings = torch.cat((embeddings, layer_embedding), 1)
         # print("embeddings:", embeddings.size()) # [B, 384, 28, 28]
         return embeddings

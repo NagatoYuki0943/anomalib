@@ -37,8 +37,9 @@ class AnomalyMapGenerator(nn.Module):
             torch.Tensor: Map of the pixel-level anomaly scores
         """
         # scale_factor代替size
-        scale_factor = [int(self.input_size[0] / patch_scores.shape[-2]), int(self.input_size[1] / patch_scores.shape[-1])]
-        anomaly_map = F.interpolate(patch_scores, scale_factor=scale_factor)
+        # scale_factor = [int(self.input_size[0] / patch_scores.shape[-2]), int(self.input_size[1] / patch_scores.shape[-1])]
+        # anomaly_map = F.interpolate(patch_scores, scale_factor=scale_factor)
+        anomaly_map = F.interpolate(patch_scores, size=(self.input_size[0], self.input_size[1]))
         anomaly_map = self.blur(anomaly_map)
 
         return anomaly_map

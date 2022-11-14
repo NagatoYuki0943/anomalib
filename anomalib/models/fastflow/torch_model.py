@@ -64,7 +64,7 @@ def create_fast_flow_block(
         input_dimensions (List[int]): Input dimensions (Channel, Height, Width)
         conv3x3_only (bool): Boolean whether to use conv3x3 only or conv3x3 and conv1x1.
         hidden_ratio (float): Ratio for the hidden layer channels.
-        flow_steps (int): Flow steps.
+        flow_steps (int): Flow steps.   重复flow_steps次subnet_conv_func
         clamp (float, optional): Clamp. Defaults to 2.0.
 
     Returns:
@@ -119,18 +119,18 @@ class FastflowModel(nn.Module):
             self.feature_extractor = timm.create_model(backbone, pretrained=pre_trained)
             channels = [768]
             scales = [16]
-        elif backbone in ["resnet18", "resnet50", "wide_resnet50_2"]:
+        elif backbone in ["resnet18", "resnet34", "resnet50", "wide_resnet50_2"]:
             self.feature_extractor = timm.create_model(
                 backbone,
                 pretrained=pre_trained,
                 features_only=True,
-                out_indices=[1, 2, 3],
+                out_indices=[1, 2, 3],  # resnet18/34: [B, 64, 64, 64] [B, 128, 32, 32] [B, 256, 16, 16], 对于resnet50和wide_resnet50_2通道数*4
             )
-            channels = self.feature_extractor.feature_info.channels()
-            scales = self.feature_extractor.feature_info.reduction()
+            channels = self.feature_extractor.feature_info.channels()   # resnet18/34: [64, 128, 256] , 对于resnet50和wide_resnet50_2通道数*4
+            scales = self.feature_extractor.feature_info.reduction()    # 下采样率: [4, 8, 16]
 
             # for transformers, use their pretrained norm w/o grad
-            # for resnets, self.norms are trainable LayerNorm
+            # for resnets, self.norms are trainable LayerNorm   cnn每层输出通过一个LN层处理
             self.norms = nn.ModuleList()
             for channel, scale in zip(channels, scales):
                 self.norms.append(
@@ -142,22 +142,24 @@ class FastflowModel(nn.Module):
         else:
             raise ValueError(
                 f"Backbone {backbone} is not supported. List of available backbones are "
-                "[cait_m48_448, deit_base_distilled_patch16_384, resnet18, wide_resnet50_2]."
+                "[cait_m48_448, deit_base_distilled_patch16_384, resnet18, resnet34, resnet50, wide_resnet50_2]."
             )
 
         for parameter in self.feature_extractor.parameters():
             parameter.requires_grad = False
 
+        # 对模型的多层输出都使用 fast_flow_blocks 处理
         self.fast_flow_blocks = nn.ModuleList()
         for channel, scale in zip(channels, scales):
             self.fast_flow_blocks.append(
                 create_fast_flow_block(
-                    input_dimensions=[channel, int(input_size[0] / scale), int(input_size[1] / scale)],
-                    conv3x3_only=conv3x3_only,
-                    hidden_ratio=hidden_ratio,
-                    flow_steps=flow_steps,
+                    input_dimensions=[channel, int(input_size[0] / scale), int(input_size[1] / scale)], # [4, 64, 64] [128, 32, 32] [256, 16, 16]
+                    conv3x3_only=conv3x3_only,                                                          # 是否全为3x3Conv
+                    hidden_ratio=hidden_ratio,                                                          # 隐藏层比例
+                    flow_steps=flow_steps,                                                              # 重复flow_steps次subnet_conv_func
                 )
             )
+        # 通过结果生成热力图
         self.anomaly_map_generator = AnomalyMapGenerator(input_size=input_size)
 
     def forward(self, input_tensor: Tensor) -> Union[Tuple[List[Tensor], List[Tensor]], Tensor]:
@@ -174,6 +176,10 @@ class FastflowModel(nn.Module):
 
         return_val: Union[Tuple[List[Tensor], List[Tensor]], Tensor]
 
+        #--------------------------------------------------------------------------------#
+        #   1.提取特征,都是列表
+        #   [B, 3, 256, 256] -> [[B, 64, 64, 64], [B, 128, 32, 32], [B, 256, 16, 16]]
+        #--------------------------------------------------------------------------------#
         self.feature_extractor.eval()
         if isinstance(self.feature_extractor, VisionTransformer):
             features = self._get_vit_features(input_tensor)
@@ -182,18 +188,23 @@ class FastflowModel(nn.Module):
         else:
             features = self._get_cnn_features(input_tensor)
 
+        #--------------------------------------------------------------------------------#
+        #   2.分别使用 fast_flow_blocks 处理多层features,处理后形状不变
+        #   [[B, 64, 64, 64], [B, 128, 32, 32], [B, 256, 16, 16]] -> [[B, 64, 64, 64], [B, 128, 32, 32], [B, 256, 16, 16]]
+        #--------------------------------------------------------------------------------#
         # Compute the hidden variable f: X -> Z and log-likelihood of the jacobian
         # (See Section 3.3 in the paper.)
         # NOTE: output variable has z, and jacobian tuple for each fast-flow blocks.
         hidden_variables: List[Tensor] = []
         log_jacobians: List[Tensor] = []
         for fast_flow_block, feature in zip(self.fast_flow_blocks, features):
-            hidden_variable, log_jacobian = fast_flow_block(feature)
+            hidden_variable, log_jacobian = fast_flow_block(feature)    # [B, C, H, W] [B]
             hidden_variables.append(hidden_variable)
             log_jacobians.append(log_jacobian)
 
+        # 3.训练返回2个参数
         return_val = (hidden_variables, log_jacobians)
-
+        # 4.验证返回热力图
         if not self.training:
             return_val = self.anomaly_map_generator(hidden_variables)
 
