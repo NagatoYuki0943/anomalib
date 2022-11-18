@@ -36,7 +36,7 @@ model:
     - layer2
     - layer3
   early_stopping:
-    patience: 20
+    patience: 200
     metric: image_AUROC
     mode: max
   beta1: 0.5

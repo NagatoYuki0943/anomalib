@@ -32,7 +32,7 @@ model:
   enable_sspcab: false
   sspcab_lambda: 0.1
   early_stopping:
-    patience: 20
+    patience: 700
     metric: image_AUROC
     mode: max
   normalization_method: min_max # options: [none, min_max, cdf]

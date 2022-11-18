@@ -33,7 +33,7 @@ model:
   extra_layers: 0
   add_final_conv: true
   early_stopping:
-    patience: 20
+    patience: 100
     metric: image_AUROC
     mode: max
   lr: 0.0002
