@@ -5,9 +5,9 @@ dataset:
   task: segmentation
   category: bottle
   image_size: 256 # options: [256, 256, 448, 384] - for each supported backbone
-  train_batch_size: 32
-  test_batch_size: 32
-  num_workers: 8
+  train_batch_size: 8
+  test_batch_size: 8
+  num_workers: 2
   transform_config:
     train: null
     val: null
@@ -60,7 +60,7 @@ project:
 
 logging:
   logger: [tensorboard] # options: [comet, tensorboard, wandb, csv] or combinations.
-  log_graph: true # Logs the model graph to respective logger.
+  log_graph: false # Logs the model graph to respective logger.
 
 optimization:
   export_mode: openvino # options: onnx, openvino
