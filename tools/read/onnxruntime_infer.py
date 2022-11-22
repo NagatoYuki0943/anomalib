@@ -125,14 +125,14 @@ class OrtInference(Inference):
         if len(predictions) == 1:
             # 大多数模型只返回热力图
             # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
-            anomaly_map = predictions[0]
-            pred_score  = anomaly_map.reshape(-1).max()
+            anomaly_map = predictions[0]                # [1, 1, 256, 256] 返回类型为 np.ndarray
+            pred_score  = anomaly_map.reshape(-1).max() # [1]
         else:
             # patchcore返回热力图和得分
             anomaly_map, pred_score = predictions
         print("pred_score:", pred_score)    # 3.1183257
 
-        # 4.后处理,归一化热力图和概率
+        # 4.后处理,归一化热力图和概率,缩放到原图尺寸 [900, 900] [1]
         anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
         return anomaly_map, pred_score
@@ -156,14 +156,17 @@ def single(model_path: str, image_path: str, meta_path: str, save_path: str, mod
 
     # 3.推理
     start = time.time()
-    anomaly_map, pred_score = inference.infer(image)
+    anomaly_map, pred_score = inference.infer(image)    # [900, 900] [1]
+
+    # 4.生成mask,mask边缘,热力图叠加原图
+    mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
     end = time.time()
 
     print("pred_score:", pred_score)    # 0.8885370492935181
     print("infer time:", end - start)
 
-    # 4.保存图片
-    save_image(save_path, image, anomaly_map, pred_score)
+    # 5.保存图片
+    save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
 
 def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, mode: str="cpu") -> None:
@@ -203,7 +206,10 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, m
 
         # 5.推理
         start = time.time()
-        anomaly_map, pred_score = inference.infer(image)
+        anomaly_map, pred_score = inference.infer(image)    # [900, 900] [1]
+
+        # 6.生成mask,mask边缘,热力图叠加原图
+        mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
         end = time.time()
 
         infer_times.append(end - start)
@@ -211,10 +217,10 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, m
         print("pred_score:", pred_score)    # 0.8885370492935181
         print("infer time:", end - start)
 
-        # 6.保存图片
-        if save_dir is not None:
-            save_path = os.path.join(save_dir, img)
-            save_image(save_path, image, anomaly_map, pred_score)
+        # if save_dir is not None:
+        #     # 7.保存图片
+        #     save_path = os.path.join(save_dir, img)
+        #     save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
     print("avg infer time: ", mean(infer_times))
     draw_score(scores, save_dir)
@@ -223,9 +229,9 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, m
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/patchcore/mvtec/bottle/run/optimization/model.onnx"
-    param_dir  = "./results/patchcore/mvtec/bottle/run/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle/run/onnx_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle/run/result"
-    single(model_path, image_path, param_dir, save_path, mode="cuda")
-    # multi(model_path, image_dir, param_dir, save_dir, mode="cuda")
+    model_path = "./results/fastflow/mvtec/bottle/run/optimization/model.onnx"
+    meta_path  = "./results/fastflow/mvtec/bottle/run/optimization/meta_data.json"
+    save_path  = "./results/fastflow/mvtec/bottle/run/onnx_output.jpg"
+    save_dir   = "./results/fastflow/mvtec/bottle/run/result"
+    single(model_path, image_path, meta_path, save_path, mode="cuda")
+    # multi(model_path, image_dir, meta_path, save_dir, mode="cuda")

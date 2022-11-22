@@ -148,7 +148,7 @@ def normalize(
 
 
 #-----------------------------#
-#   预测结果后处理，包括归一化，所放到原图尺寸
+#   预测结果后处理，包括归一化，缩放到原图尺寸
 #-----------------------------#
 def post_process(
     anomaly_map: Union[Tensor, np.ndarray],
@@ -309,11 +309,11 @@ def draw_score(scores: list, save_dir: str):
 
 
 # from anomalib.post_processing.post_process import compute_mask
-def compute_mask(anomaly_map: np.ndarray, threshold: float = 0.5, kernel_size: int = 3) -> np.ndarray:
+def compute_mask(anomaly_map: np.ndarray, threshold: float = 0.5, kernel_size: int = 1) -> np.ndarray:
     """Compute anomaly mask via thresholding the predicted anomaly map.
 
     Args:
-        anomaly_map (np.ndarray): Anomaly map predicted via the model
+        anomaly_map (np.ndarray): Anomaly map predicted via the model   (900, 900)
         threshold (float): Value to threshold anomaly scores into 0-1 range.
         kernel_size (int): Value to apply morphological operations to the predicted mask. Defaults to 4.
 
@@ -333,24 +333,41 @@ def compute_mask(anomaly_map: np.ndarray, threshold: float = 0.5, kernel_size: i
     return mask
 
 
-def save_image(save_path: str, image: np.ndarray, anomaly_map: np.ndarray, pred_score: float, mask_thre: float = 0.5):
-    """根据热力图,mask,得分叠加并保存图片
+# from anomalib.deploy.inferencers.base_inferencer import Inferencer._superimpose_segmentation_mask
+def gen_mask_border(mask: np.ndarray, image: np.ndarray) -> np.ndarray:
+    """找mask的边缘,并显示在原图上
 
     Args:
-        save_path (str):   保存图片路径
+        mask (np.ndarray):  mask
         image (np.ndarray): 原图
-        anomaly_map (np.ndarray): 热力图
-        pred_score (float): 预测得分
-        mask_thre (float): mask阈值. Defaults to 0.5.
+
+    Returns:
+        np.ndarray: 原图上画上边缘
+    """
+    boundaries   = find_boundaries(mask)    # find_boundaries和dilation 返回和原图一样的 0 1 的图像(True False也可以)
+    outlines     = dilation(boundaries, np.ones((3, 3)))
+    mask_outline = image.copy()             # 深拷贝
+    mask_outline[outlines] = [255, 0, 0]
+    return mask_outline
+
+
+def gen_images(image: np.ndarray, anomaly_map: np.ndarray, mask_thre: float = 0.5) -> list[np.ndarray]:
+    """根据热力图,mask,热力图阈值生成mask,mask_outline,superimposed_map
+
+    Args:
+        save_path (str):            保存图片路径
+        image (np.ndarray):         原图    ex: (900, 900, 3)
+        anomaly_map (np.ndarray):   热力图  ex: (900, 900)
+        mask_thre (float):          mask阈值. Defaults to 0.5.
+
+    Returns:
+        mask ,mask_outline, superimposed_map
     """
     # 1.计算mask
     mask = compute_mask(anomaly_map, mask_thre)
 
     # 2.计算mask外边界
-    outlines_image = image.copy()       # 深拷贝ndarray
-    boundaries = find_boundaries(mask)  # find_boundaries和dilation 返回和原图一样的 0 1 的图像(True False也可以)
-    outlines = dilation(boundaries, np.ones((3, 3)))
-    outlines_image[outlines] = [255, 0, 0]
+    mask_outline = gen_mask_border(mask, image)
 
     # 3.热力图混合原图
     superimposed_map = superimpose_anomaly_map(anomaly_map, image)
@@ -359,18 +376,31 @@ def save_image(save_path: str, image: np.ndarray, anomaly_map: np.ndarray, pred_
     # superimposed_map_label = add_label(superimposed_map, pred_score)
     # superimposed_map_label = cv2.cvtColor(superimposed_map_label, cv2.COLOR_RGB2BGR)
 
-    # 5.绘图
-    figsize = (4 * 8, 8)
+    return [mask, mask_outline, superimposed_map]
+
+
+def save_image(save_path: str, pred_score: float, image: np.ndarray, mask: np.ndarray, mask_outline: np.ndarray, superimposed_map: np.ndarray):
+    """保存图片
+
+    Args:
+        save_path (str):    保存路径
+        pred_score (float): 预测得分
+        image (np.ndarray): 原图
+        mask (np.ndarray):  mask
+        mask_outline (np.ndarray): mask边缘
+        superimposed_map (np.ndarray): 热力图+原图
+    """
+    figsize = (4 * 9, 9)
     figure, axes = plt.subplots(1, 4, figsize=figsize)
 
     axes[0].imshow(image)
     axes[0].set_title("origin")
-    axes[1].imshow(superimposed_map)
-    axes[1].set_title("score: {:.4f}".format(pred_score))
-    axes[2].imshow(mask)
-    axes[2].set_title("mask")
-    axes[3].imshow(outlines_image)
-    axes[3].set_title("outlines")
+    axes[1].imshow(mask)
+    axes[1].set_title("mask")
+    axes[2].imshow(mask_outline)
+    axes[2].set_title("outlines")
+    axes[3].imshow(superimposed_map)
+    axes[3].set_title("score: {:.4f}".format(pred_score))
     # plt.show()
     # return
     plt.savefig(save_path)

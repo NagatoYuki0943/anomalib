@@ -14,6 +14,7 @@ from read_utils import *
 
 
 """openvino图片预处理方法
+input(0)/output(0) 按照id找指定的输入输出,不指定找全部的输入输出
 
 # input().tensor()       有7个方法
 ppp.input().tensor().set_color_format().set_element_type().set_layout() \
@@ -48,11 +49,16 @@ class OVInference(Inference):
         """
         super().__init__()
         self.openvino_preprocess = openvino_preprocess
-        # 超参数
+        # 1.超参数
         self.meta  = get_meta_data(meta_path)
-        # 载入模型
+        # 2.载入模型
         self.model = self.get_openvino_model(model_path, mode)
-        # 预热模型
+        # 3.保存模型输入输出
+        self.inputs  = self.model.inputs
+        self.outputs = self.model.outputs
+        # print(f"inputs: {self.inputs}")   # inputs: [<ConstOutput: names[input] shape{1,3,224,224} type: f32>]
+        # print(f"outputs: {self.outputs}") # outputs: [<ConstOutput: names[output] shape{1,1,224,224} type: f32>, <ConstOutput: names[278] shape{1} type: f32>]
+        # 4.预热模型
         self.warm_up()
 
 
@@ -82,7 +88,7 @@ class OVInference(Inference):
             # https://blog.csdn.net/sandmangu/article/details/107181289
             # https://docs.openvino.ai/latest/openvino_2_0_preprocessing.html
             ppp = PrePostProcessor(model)
-            # 设定图片数据类型，形状，通道排布为RGB     input(0) 指的是第0个输入
+            # 设定图片数据类型，形状，通道排布为RGB
             ppp.input(0).tensor().set_color_format(ColorFormat.RGB) \
                 .set_element_type(Type.f32).set_layout(Layout("NCHW"))   # BGR -> RGB Type.u8 -> Type.f32  NHWC -> NCHW
             # 预处理: 改变类型,转换为RGB,减去均值,除以标准差(均值和标准差包含了归一化)
@@ -91,8 +97,7 @@ class OVInference(Inference):
             # 指定模型输入形状
             ppp.input(0).model().set_layout(Layout("NCHW"))
             # 指定模型输出类型
-            ppp.output(0).tensor().set_element_type(Type.f32)
-            ppp.output(1).tensor().set_element_type(Type.f32)
+            ppp.output().tensor().set_element_type(Type.f32)
             # Embed above steps in the graph
             model = ppp.build()
 
@@ -121,14 +126,6 @@ class OVInference(Inference):
         # 1.保存原图宽高
         self.meta["image_size"] = [image.shape[0], image.shape[1]]
 
-        # 1.获取模型输入,输出
-        inputs  = self.model.inputs
-        outputs = self.model.outputs
-        # print(f"inputs: {inputs}")      # inputs: [<ConstOutput: names[input] shape{1,3,224,224} type: f32>]
-        # print(f"outputs: {outputs}")    # outputs: [<ConstOutput: names[output] shape{1,1,224,224} type: f32>, <ConstOutput: names[278] shape{1} type: f32>]
-        # 创建推理请求
-        # infer_request = compiled_model.create_infer_request()
-
         # 2.图片预处理
         # 推理时使用的图片大小
         infer_height, infer_width = self.meta["infer_size"]
@@ -144,27 +141,35 @@ class OVInference(Inference):
         # x = np.ones((1, 3, 224, 224))
         x = x.astype(dtype=np.float32)
 
-        # 3.预测得到热力图和概率
-        # 推理 多种方式
+        # 3.推理 多种方式
         # https://docs.openvino.ai/latest/openvino_2_0_inference_pipeline.html
         # https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html#
-        # results = infer_request.infer({inputs[0]: x})     # 同样支持list输入
-        # results = compiled_model({inputs[0]: x})
+
+        # 3.1 使用推理请求
+        # infer_request = self.model.create_infer_request()
+        # results       = infer_request.infer({self.inputs[0]: x})          # 直接返回推理结果
+        # results       = infer_request.infer({0: x})                       # 直接返回推理结果
+        # results       = infer_request.infer([x])                          # 直接返回推理结果
+        # result0       = infer_request.get_output_tensor(outputs[0].index) # 通过方法获取单独结果  outputs[0].index 可以用0 1代替
+
+        # 3.2 模型直接推理
+        # results = self.model({self.inputs[0]: x})
+        # results = self.model({0: x})
         results = self.model([x])
 
-        # 4.解决不同模型输出问题
-        if len(outputs) == 1:
+        # 4.解决不同模型输出问题 得到热力图和概率
+        if len(self.outputs) == 1:
             # 大多数模型只返回热力图
             # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
-            anomaly_map = results[outputs[0]]
-            pred_score  = anomaly_map.reshape(-1).max()
+            anomaly_map = results[self.outputs[0]]          # [1, 1, 256, 256] 返回类型为 np.ndarray
+            pred_score  = anomaly_map.reshape(-1).max()     # [1]
         else:
             # patchcore返回热力图和得分
-            anomaly_map = results[outputs[0]]
-            pred_score  = results[outputs[1]]
+            anomaly_map = results[self.outputs[0]]
+            pred_score  = results[self.outputs[1]]
         print("pred_score:", pred_score)    # 3.1183267
 
-        # 5.后处理,归一化热力图和概率
+        # 5.后处理,归一化热力图和概率,缩放到原图尺寸 [900, 900] [1]
         anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
         return anomaly_map, pred_score
@@ -190,14 +195,17 @@ def single(model_path: str, image_path: str, meta_path: str,
 
     # 3.推理
     start = time.time()
-    anomaly_map, pred_score = inference.infer(image)
+    anomaly_map, pred_score = inference.infer(image)    # [900, 900] [1]
+
+    # 4.生成mask,mask边缘,热力图叠加原图
+    mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
     end = time.time()
 
     print("pred_score:", pred_score)    # 0.8885372877120972
     print("infer time:", end - start)
 
-    # 4.保存图片
-    save_image(save_path, image, anomaly_map, pred_score)
+    # 5.保存图片
+    save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
 
 def multi(model_path: str, image_dir: str, meta_path: str,
@@ -239,7 +247,10 @@ def multi(model_path: str, image_dir: str, meta_path: str,
 
         # 5.推理
         start = time.time()
-        anomaly_map, pred_score = inference.infer(image)
+        anomaly_map, pred_score = inference.infer(image)    # [900, 900] [1]
+
+        # 6.生成mask,mask边缘,热力图叠加原图
+        mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
         end = time.time()
 
         infer_times.append(end - start)
@@ -247,10 +258,10 @@ def multi(model_path: str, image_dir: str, meta_path: str,
         print("pred_score:", pred_score)    # 0.8885372877120972
         print("infer time:", end - start)
 
-        # 6.保存图片
         if save_dir is not None:
+            # 7.保存图片
             save_path = os.path.join(save_dir, img)
-            save_image(save_path, image, anomaly_map, pred_score)
+            save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
     print("avg infer time: ", mean(infer_times))
     draw_score(scores, save_dir)
@@ -259,9 +270,9 @@ def multi(model_path: str, image_dir: str, meta_path: str,
 if __name__ == '__main__':
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/patchcore/mvtec/bottle/run/optimization/openvino/model.xml"
-    meta_path  = "./results/patchcore/mvtec/bottle/run/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle/run/openvino_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle/run/result"
-    single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
-    # multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)
+    model_path = "./results/fastflow/mvtec/bottle/run/optimization/openvino/model.xml"
+    meta_path  = "./results/fastflow/mvtec/bottle/run/optimization/meta_data.json"
+    save_path  = "./results/fastflow/mvtec/bottle/run/openvino_output.jpg"
+    save_dir   = "./results/fastflow/mvtec/bottle/run/result"
+    # single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
+    multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)

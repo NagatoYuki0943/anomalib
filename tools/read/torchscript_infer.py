@@ -79,8 +79,8 @@ class TorchscriptInference(Inference):
         if isinstance(predictions, Tensor):
             # 大多数模型只返回热力图
             # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
-            anomaly_map = predictions.detach().cpu().numpy()
-            pred_score  = anomaly_map.reshape(-1).max()
+            anomaly_map = predictions.detach().cpu().numpy()    # [1, 1, 256, 256]
+            pred_score  = anomaly_map.reshape(-1).max()         # [1]
         else:
             # patchcore返回热力图和得分
             anomaly_map, pred_score = predictions
@@ -88,7 +88,7 @@ class TorchscriptInference(Inference):
             pred_score  = pred_score.detach().cpu().numpy()
         print("pred_score:", pred_score)    # 3.1183
 
-        # 4.后处理,归一化热力图和概率
+        # 4.后处理,归一化热力图和概率,缩放到原图尺寸 [900, 900] [1]
         anomaly_map, pred_score = post_process(anomaly_map, pred_score, self.meta)
 
         return anomaly_map, pred_score
@@ -112,14 +112,17 @@ def single(model_path: str, image_path: str, meta_path: str, save_path: str, use
 
     # 3.推理
     start = time.time()
-    anomaly_map, pred_score = inference.infer(image)
+    anomaly_map, pred_score = inference.infer(image)    # [900, 900] [1]
+
+    # 4.生成mask,mask边缘,热力图叠加原图
+    mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
     end = time.time()
 
     print("pred_score:", pred_score)    # 0.8885370492935181
     print("infer time:", end - start)
 
     # 5.保存图片
-    save_image(save_path, image, anomaly_map, pred_score)
+    save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
 
 def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cuda: bool=False) -> None:
@@ -159,7 +162,10 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
 
         # 5.推理
         start = time.time()
-        anomaly_map, pred_score = inference.infer(image)
+        anomaly_map, pred_score = inference.infer(image)    # [900, 900] [1]
+
+        # 6.生成mask,mask边缘,热力图叠加原图
+        mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
         end = time.time()
 
         infer_times.append(end - start)
@@ -167,10 +173,10 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
         print("pred_score:", pred_score)    # 0.8885370492935181
         print("infer time:", end - start)
 
-        # 6.保存结果
         if save_dir is not None:
+            # 7.保存图片
             save_path = os.path.join(save_dir, img)
-            save_image(save_path, image, anomaly_map, pred_score)
+            save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
     print("avg infer time: ", mean(infer_times))
     draw_score(scores, save_dir)
@@ -179,9 +185,9 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/patchcore/mvtec/bottle/run/optimization/model_gpu.torchscript"
-    param_dir  = "./results/patchcore/mvtec/bottle/run/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle/run/torchscript_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle/run/result"
-    single(model_path, image_path, param_dir, save_path, use_cuda=True)   # 注意: 使用cuda时要使用gpu模型
-    # multi(model_path, image_dir, param_dir, save_dir, use_cuda=True)    # 注意: 使用cuda时要使用gpu模型
+    model_path = "./results/fastflow/mvtec/bottle/run/optimization/model_gpu.torchscript"
+    meta_path  = "./results/fastflow/mvtec/bottle/run/optimization/meta_data.json"
+    save_path  = "./results/fastflow/mvtec/bottle/run/torchscirpt_output.jpg"
+    save_dir   = "./results/fastflow/mvtec/bottle/run/result"
+    single(model_path, image_path, meta_path, save_path, use_cuda=True)   # 注意: 使用cuda时要使用gpu模型
+    # multi(model_path, image_dir, meta_path, save_dir, use_cuda=True)    # 注意: 使用cuda时要使用gpu模型

@@ -116,7 +116,7 @@ class Inferencer(ABC):
         image_width = meta_data["image_shape"][1]
         pred_mask = cv2.resize(pred_mask, (image_width, image_height))
         boundaries = find_boundaries(pred_mask)
-        outlines = dilation(boundaries, np.ones((7, 7)))
+        outlines = dilation(boundaries, np.ones((3, 3))) # Defaults to (7, 7).
         image[outlines] = [255, 0, 0]
         return image
 

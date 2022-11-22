@@ -213,7 +213,7 @@ class ImageGrid:
             Image consisting of a grid of added images and their title.
         """
         num_cols = len(self.images)
-        figure_size = (num_cols * 8, 8)     # 调整画图图片大小
+        figure_size = (num_cols * 9, 9)     # 调整画图图片大小
         self.figure, self.axis = plt.subplots(1, num_cols, figsize=figure_size)
         self.figure.subplots_adjust(right=0.9)
 
