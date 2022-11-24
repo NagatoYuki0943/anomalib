@@ -58,7 +58,7 @@ class OrtInference(Inference):
                     ('CUDAExecutionProvider', {
                         'device_id': 0,
                         'arena_extend_strategy': 'kNextPowerOfTwo',
-                        'gpu_mem_limit': 2 * 1024 * 1024 * 1024,
+                        'gpu_mem_limit': 2 * 1024 * 1024 * 1024, # 2GB
                         'cudnn_conv_algo_search': 'EXHAUSTIVE',
                         'do_copy_in_default_stream': True,
                     }),
@@ -71,13 +71,13 @@ class OrtInference(Inference):
             "tensorrt": [
                     ('TensorrtExecutionProvider', {
                         'device_id': 0,
-                        'trt_max_workspace_size': 2147483648,
+                        'trt_max_workspace_size': 2 * 1024 * 1024 * 1024, # 2GB
                         'trt_fp16_enable': False,
                     }),
                     ('CUDAExecutionProvider', {
                         'device_id': 0,
                         'arena_extend_strategy': 'kNextPowerOfTwo',
-                        'gpu_mem_limit': 2 * 1024 * 1024 * 1024,
+                        'gpu_mem_limit': 2 * 1024 * 1024 * 1024, # 2GB
                         'cudnn_conv_algo_search': 'EXHAUSTIVE',
                         'do_copy_in_default_stream': True,
                     })
