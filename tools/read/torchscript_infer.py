@@ -21,13 +21,13 @@ class TorchscriptInference(Inference):
         # 超参数
         self.meta = get_meta_data(meta_path)
         # 载入模型
-        self.model = self.get_script_model(model_path)
+        self.model = self.get_model(model_path)
         self.model.eval()
         # 预热模型
         self.warm_up()
 
 
-    def get_script_model(self, torchscript_path: str):
+    def get_model(self, torchscript_path: str):
         """获取script模型
 
         Args:
@@ -185,9 +185,9 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str, use_cu
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/fastflow/mvtec/bottle/run/optimization/model_gpu.torchscript"
-    meta_path  = "./results/fastflow/mvtec/bottle/run/optimization/meta_data.json"
-    save_path  = "./results/fastflow/mvtec/bottle/run/torchscirpt_output.jpg"
-    save_dir   = "./results/fastflow/mvtec/bottle/run/result"
+    model_path = "./results/fastflow/mvtec/bottle/256/optimization/model_gpu.torchscript"
+    meta_path  = "./results/fastflow/mvtec/bottle/256/optimization/meta_data.json"
+    save_path  = "./results/fastflow/mvtec/bottle/256/onnx_output.jpg"
+    save_dir   = "./results/fastflow/mvtec/bottle/256/result"
     single(model_path, image_path, meta_path, save_path, use_cuda=True)   # 注意: 使用cuda时要使用gpu模型
     # multi(model_path, image_dir, meta_path, save_dir, use_cuda=True)    # 注意: 使用cuda时要使用gpu模型

@@ -52,7 +52,7 @@ class OVInference(Inference):
         # 1.超参数
         self.meta  = get_meta_data(meta_path)
         # 2.载入模型
-        self.model = self.get_openvino_model(model_path, mode)
+        self.model = self.get_model(model_path, mode)
         # 3.保存模型输入输出
         self.inputs  = self.model.inputs
         self.outputs = self.model.outputs
@@ -62,7 +62,7 @@ class OVInference(Inference):
         self.warm_up()
 
 
-    def get_openvino_model(self, model_path: str, mode: str='CPU') -> ov.CompiledModel:
+    def get_model(self, model_path: str, mode: str='CPU') -> ov.CompiledModel:
         """获取模型
 
         Args:
@@ -270,9 +270,9 @@ def multi(model_path: str, image_dir: str, meta_path: str,
 if __name__ == '__main__':
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/fastflow/mvtec/bottle/run/optimization/openvino/model.xml"
-    meta_path  = "./results/fastflow/mvtec/bottle/run/optimization/meta_data.json"
-    save_path  = "./results/fastflow/mvtec/bottle/run/openvino_output.jpg"
-    save_dir   = "./results/fastflow/mvtec/bottle/run/result"
-    # single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
-    multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)
+    model_path = "./results/fastflow/mvtec/bottle/256/optimization/openvino/model.xml"
+    meta_path  = "./results/fastflow/mvtec/bottle/256/optimization/meta_data.json"
+    save_path  = "./results/fastflow/mvtec/bottle/256/onnx_output.jpg"
+    save_dir   = "./results/fastflow/mvtec/bottle/256/result"
+    single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
+    # multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)

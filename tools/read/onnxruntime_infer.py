@@ -30,12 +30,12 @@ class OrtInference(Inference):
         # 超参数
         self.meta  = get_meta_data(meta_path)
         # 载入模型
-        self.model = self.get_onnx_model(model_path, mode)
+        self.model = self.get_model(model_path, mode)
         # 预热模型
         self.warm_up()
 
 
-    def get_onnx_model(self, onnx_path: str, mode: str="cpu") -> ort.InferenceSession:
+    def get_model(self, onnx_path: str, mode: str="cpu") -> ort.InferenceSession:
         """获取onnxruntime模型
 
         Args:
@@ -217,10 +217,10 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, m
         print("pred_score:", pred_score)    # 0.8885370492935181
         print("infer time:", end - start)
 
-        # if save_dir is not None:
-        #     # 7.保存图片
-        #     save_path = os.path.join(save_dir, img)
-        #     save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
+        if save_dir is not None:
+            # 7.保存图片
+            save_path = os.path.join(save_dir, img)
+            save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
 
     print("avg infer time: ", mean(infer_times))
     draw_score(scores, save_dir)
@@ -229,9 +229,9 @@ def multi(model_path: str, image_dir: str, meta_path: str, save_dir: str=None, m
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/fastflow/mvtec/bottle/run/optimization/model.onnx"
-    meta_path  = "./results/fastflow/mvtec/bottle/run/optimization/meta_data.json"
-    save_path  = "./results/fastflow/mvtec/bottle/run/onnx_output.jpg"
-    save_dir   = "./results/fastflow/mvtec/bottle/run/result"
+    model_path = "./results/fastflow/mvtec/bottle/256/optimization/model.onnx"
+    meta_path  = "./results/fastflow/mvtec/bottle/256/optimization/meta_data.json"
+    save_path  = "./results/fastflow/mvtec/bottle/256/onnx_output.jpg"
+    save_dir   = "./results/fastflow/mvtec/bottle/256/result"
     single(model_path, image_path, meta_path, save_path, mode="cuda")
     # multi(model_path, image_dir, meta_path, save_dir, mode="cuda")
