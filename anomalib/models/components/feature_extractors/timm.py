@@ -32,7 +32,7 @@ class TimmFeatureExtractor(nn.Module):
         >>> import torch
         >>> from anomalib.models.components.feature_extractors import TimmFeatureExtractor
 
-        >>> model = TimmFeatureExtractor(model="resnet18", layers=['layer1', 'layer2', 'layer3'])
+        >>> model = TimmFeatureExtractor(backbone="resnet18", layers=['layer1', 'layer2', 'layer3'])
         >>> input = torch.rand((32, 3, 256, 256))
         >>> features = model(input)
 

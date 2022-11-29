@@ -270,9 +270,9 @@ def multi(model_path: str, image_dir: str, meta_path: str,
 if __name__ == '__main__':
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    model_path = "./results/fastflow/mvtec/bottle/256/optimization/openvino/model.xml"
-    meta_path  = "./results/fastflow/mvtec/bottle/256/optimization/meta_data.json"
-    save_path  = "./results/fastflow/mvtec/bottle/256/onnx_output.jpg"
-    save_dir   = "./results/fastflow/mvtec/bottle/256/result"
+    model_path = "./results/patchcore/mvtec/bottle/256/optimization/openvino/model.xml"
+    meta_path  = "./results/patchcore/mvtec/bottle/256/optimization/meta_data.json"
+    save_path  = "./results/patchcore/mvtec/bottle/256/onnx_output.jpg"
+    save_dir   = "./results/patchcore/mvtec/bottle/256/result"
     single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
     # multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)

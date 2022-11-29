@@ -166,7 +166,8 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             sampling_ratio (float): Coreset sampling ratio
         """
         # 允许的embedding最大长度,超过最大长度为20000,这样ort不会报错,20000 * 1600(在320分辨率下的dim); 20911报错,20910不会, 20911*1600*4/1024/1024=127.6306MB
-        embedding_max_len = 20910
+        # 8000 允许512分辨率 8000 * 64 * 64 * 4 / 1024 / 1024 = 125MB
+        embedding_max_len = 8000
         embedding_len     = int(embedding.size(0))
         if embedding_len * sampling_ratio > embedding_max_len:
             sampling_ratio = embedding_max_len / embedding_len
@@ -189,7 +190,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         print(embedding.size(), self.memory_bank.size())         # [784, 384] [16385, 384]
-        distances = my_cdist_p2_v2(embedding, self.memory_bank)  # euclidean norm
+        distances = fast_cdist(embedding, self.memory_bank)  # euclidean norm
         if n_neighbors == 1:
             # when n_neighbors is 1, speed up computation by using min instead of topk
             patch_scores, locations = distances.min(1)
@@ -230,9 +231,8 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         # print(embedding[max_patches].unsqueeze(1).size())   # [b, 1, 384]   **
         # print(support_samples.size())                       # [b, 9]
         # print(self.memory_bank[support_samples].size())     # [b, 9, 384]   **
-        distances = my_cdist_p2_v2(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples])
+        distances = fast_cdist(embedding[max_patches].unsqueeze(1), self.memory_bank[support_samples])
         # print(distances.size())                             # [b, 1, 9]     **
-        # exit()
 
         # 5. Apply softmax to find the weights
         weights = (1 - F.softmax(distances.squeeze(1), 1))[..., 0]
@@ -248,6 +248,7 @@ def my_cdist_p2(x1: Tensor, x2: Tensor) -> Tensor:
         比torch.cdist更慢,不过导出onnx更快
         dim=3时第1个维度代表batch,大了之后相比torch.cdist更慢
         https://github.com/openvinotoolkit/anomalib/issues/440#issuecomment-1191184221
+        https://github.com/pytorch/pytorch/issues/15253#issuecomment-491467128
 
         只能处理二维矩阵
     Args:
@@ -312,17 +313,47 @@ def my_cdist_p2_v2(x1: Tensor, x2: Tensor) -> Tensor:
 
         可以处理多维矩阵
     Args:
-        x1 (Tensor): [x, z] or [..., x, z]
-        x2 (Tensor): [y, z] or [..., y, z]
+        x1 (Tensor):[..., x, z]
+        x2 (Tensor):[..., y, z]
 
     Returns:
-        Tensor: [x, y] or [..., x, y]
+        Tensor:[..., x, y]
     """
     x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
     x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
     # res = torch.addmm(x2_norm.transpose(-2, -1), x1, x2.transpose(-2, -1), alpha=-2).add_(x1_norm)
     res = x2_norm.transpose(-2, -1) - 2 * x1 @ x2.transpose(-2, -1) + x1_norm
     res = res.clamp_min_(1e-30).sqrt_()
+    return res
+
+
+def fast_cdist(x1: Tensor, x2: Tensor) -> Tensor:
+    """https://github.com/pytorch/pytorch/pull/25799#issuecomment-529021810
+        比my_cdist_p2更快
+        可以处理多维矩阵
+    Args:
+        x1 (Tensor):[..., x, z]
+        x2 (Tensor):[..., y, z]
+
+    Returns:
+        Tensor:[..., x, y]
+    """
+    adjustment = x1.mean(-2, keepdim=True)
+    x1 = x1 - adjustment
+    x2 = x2 - adjustment  # x1 and x2 should be identical in all dims except -2 at this point
+
+    # Compute squared distance matrix using quadratic expansion
+    # But be clever and do it with a single matmul call
+    x1_norm = x1.pow(2).sum(dim=-1, keepdim=True)
+    x1_pad = torch.ones_like(x1_norm)
+    x2_norm = x2.pow(2).sum(dim=-1, keepdim=True)
+    x2_pad = torch.ones_like(x2_norm)
+    x1_ = torch.cat([-2. * x1, x1_norm, x1_pad], dim=-1)
+    x2_ = torch.cat([x2, x2_pad, x2_norm], dim=-1)
+    res = x1_.matmul(x2_.transpose(-2, -1))
+
+    # Zero out negative values
+    res.clamp_min_(1e-30).sqrt_()
     return res
 
 
@@ -334,10 +365,9 @@ if __name__ == "__main__":
     y2 = my_cdist_p2_v1(x, y)
     y3 = my_cdist_p2_v2(x, y)
     print(y0.size())                # [640, 6400]
-    print(y0.eq(y1).sum().item())   # 3248923
-    print(y1.eq(y2).sum().item())   # 4096000
-    print(y2.eq(y3).sum().item())   # 3796318
-
+    print(y0.eq(y1).sum().item())   # 3251568
+    print(y0.eq(y2).sum().item())   # 3251568
+    print(y0.eq(y3).sum().item())   # 3262755
 
     x = torch.randn(1, 640, 384)
     y = torch.randn(1, 6400, 384)
@@ -348,6 +378,8 @@ if __name__ == "__main__":
         print("my_cdist_p2只能处理二维数据")
     y2 = my_cdist_p2_v1(x, y)
     y3 = my_cdist_p2_v2(x, y)
+    y4 = fast_cdist(x, y)
     print(y0.size())                # [1, 640, 6400]
-    print(y0.eq(y2).sum().item())   # 3254730
-    print(y2.eq(y3).sum().item())   # 3796352
+    print(y0.eq(y2).sum().item())   # 3257236
+    print(y0.eq(y3).sum().item())   # 3268624
+    print(y0.eq(y4).sum().item())   # 2549733
