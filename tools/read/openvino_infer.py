@@ -10,7 +10,7 @@ import os
 from statistics import mean
 
 from infer import Inference
-from read_utils import *
+from read_utils import load_image, get_transform, get_meta_data, post_process, gen_images, save_image, draw_score
 
 
 """openvino图片预处理方法
@@ -97,7 +97,10 @@ class OVInference(Inference):
             # 指定模型输入形状
             ppp.input(0).model().set_layout(Layout("NCHW"))
             # 指定模型输出类型
-            ppp.output().tensor().set_element_type(Type.f32)
+            ppp.output(0).tensor().set_element_type(Type.f32)
+            if len(model.inputs) == 2:
+                ppp.output(1).tensor().set_element_type(Type.f32)
+
             # Embed above steps in the graph
             model = ppp.build()
 
@@ -108,7 +111,6 @@ class OVInference(Inference):
     def warm_up(self):
         """预热模型
         """
-        # 预热模型
         infer_height, infer_width = self.meta["infer_size"]
         x = np.zeros((1, 3, infer_height, infer_width), dtype=np.float32)
         self.model([x])
@@ -123,7 +125,7 @@ class OVInference(Inference):
         Returns:
             tuple[np.ndarray, float]: hotmap, score
         """
-        # 1.保存原图宽高
+        # 1.保存原图高宽
         self.meta["image_size"] = [image.shape[0], image.shape[1]]
 
         # 2.图片预处理
@@ -175,14 +177,14 @@ class OVInference(Inference):
         return anomaly_map, pred_score
 
 
-def single(model_path: str, image_path: str, meta_path: str,
+def single(model_path: str, meta_path: str, image_path: str,
             save_path: str, mode: str = 'CPU', openvino_preprocess: bool = False) -> None:
     """预测单张图片
 
     Args:
         model_path (str):   模型路径
-        image_path (str):   图片路径
         meta_path (str):    超参数路径
+        image_path (str):   图片路径
         save_path (str):    保存图片路径
         mode (str, optional): CPU or GPU. Defaults to CPU.
         openvino_preprocess (bool, optional): 是否使用openvino数据预处理. Defaults to False.
@@ -205,17 +207,17 @@ def single(model_path: str, image_path: str, meta_path: str,
     print("infer time:", end - start)
 
     # 5.保存图片
-    save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
+    save_image(save_path, image, mask, mask_outline, superimposed_map, pred_score)
 
 
-def multi(model_path: str, image_dir: str, meta_path: str,
+def multi(model_path: str, meta_path: str, image_dir: str,
             save_dir: str, mode: str = 'CPU', openvino_preprocess: bool = False) -> None:
     """预测多张图片
 
     Args:
         model_path (str):   模型路径
-        image_dir (str):    图片文件夹
         meta_path (str):    超参数路径
+        image_dir (str):    图片文件夹
         save_dir (str, optional): 保存图片路径,没有就不保存. Defaults to None.
         mode (str, optional): CPU or GPU. Defaults to CPU.
         openvino_preprocess (bool, optional): 是否使用openvino数据预处理. Defaults to False.
@@ -223,7 +225,7 @@ def multi(model_path: str, image_dir: str, meta_path: str,
     # 0.检查保存路径
     if save_dir is not None:
         if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
+            os.makedirs(save_dir)
             print(f"mkdir {save_dir}")
     else:
         print("保存路径为None,不会保存图片")
@@ -261,7 +263,7 @@ def multi(model_path: str, image_dir: str, meta_path: str,
         if save_dir is not None:
             # 7.保存图片
             save_path = os.path.join(save_dir, img)
-            save_image(save_path, pred_score, image, mask, mask_outline, superimposed_map)
+            save_image(save_path, image, mask, mask_outline, superimposed_map, pred_score)
 
     print("avg infer time: ", mean(infer_times))
     draw_score(scores, save_dir)
@@ -272,7 +274,7 @@ if __name__ == '__main__':
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
     model_path = "./results/patchcore/mvtec/bottle/256/optimization/openvino/model.xml"
     meta_path  = "./results/patchcore/mvtec/bottle/256/optimization/meta_data.json"
-    save_path  = "./results/patchcore/mvtec/bottle/256/onnx_output.jpg"
+    save_path  = "./results/patchcore/mvtec/bottle/256/openvino_output.jpg"
     save_dir   = "./results/patchcore/mvtec/bottle/256/result"
-    single(model_path, image_path, meta_path, save_path, mode='CPU', openvino_preprocess=True)
-    # multi(model_path, image_dir, meta_path, save_dir, mode='CPU', openvino_preprocess=True)
+    single(model_path, meta_path, image_path, save_path, mode='CPU', openvino_preprocess=True)
+    # multi(model_path, meta_path, image_dir, save_dir, mode='CPU', openvino_preprocess=True)

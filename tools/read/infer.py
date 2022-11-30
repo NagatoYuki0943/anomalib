@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
-import cv2
-
-from read_utils import *
-
+import numpy as np
 
 class Inference(ABC):
 

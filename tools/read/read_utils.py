@@ -29,7 +29,7 @@ def load_image(image_path: str) -> np.ndarray:
 #   图片预处理
 #   支持pytorch和numpy
 #-----------------------------#
-def get_transform(height, width, tensor=True) -> Callable:
+def get_transform(height: int, width: int, tensor = True) -> Callable:
     """图片预处理,支持pytorch和numpy
 
     Args:
@@ -47,12 +47,11 @@ def get_transform(height, width, tensor=True) -> Callable:
                 ToTensorV2(),
             ]
         )
-        # torchvision的预处理只支持PIL image，不支持numpy格式
         # return transforms.Compose(
         #     [
-        #         transforms.Resize((height, width)),
+        #         transforms.Resize((height, width)), # torchvision的Resize只支持 PIL Image,不支持 numpy.ndarray, opencv读取的图片就是 .ndarray 格式
         #         transforms.ToTensor(),              # 转化为tensor,并归一化
-        #         transforms.Normalize(mean,std)      # 减去均值(前面),除以标准差(后面)
+        #         transforms.Normalize(mean, std)     # 减去均值(前面),除以标准差(后面)
         #     ]
         # )
     else:
@@ -70,19 +69,18 @@ def get_transform(height, width, tensor=True) -> Callable:
 #-----------------------------#
 #   获取meta_data
 #-----------------------------#
-def get_meta_data(jsonpath: str) -> dict:
+def get_meta_data(path: str) -> dict:
     """获取 image_threshold, pixel_threshold, min, max
 
     Args:
-        jsonpath (str): json file path
+        path (str): json file path
 
     Returns:
-        meta_data(dict): metadata
+        meta_data(dict): data
     """
-    with open(jsonpath, mode='r', encoding='utf-8') as f:
-        meta_data = json.load(f)
-    # print(meta_data)
-    return meta_data
+    with open(path, mode='r', encoding='utf-8') as f:
+        data = json.load(f)
+    return data
 
 
 #-----------------------------#
@@ -166,7 +164,7 @@ def post_process(
     Returns:
         tuple(np.ndarray, float):还原到原图尺寸的热力图和得分
     """
-    anomaly_map = anomaly_map.squeeze()             # [1, 1, 224, 224] -> [224, 224]
+    anomaly_map = anomaly_map.squeeze() # [1, 1, 224, 224] -> [224, 224]
 
     #------------------------------#
     #   标准化
@@ -379,16 +377,16 @@ def gen_images(image: np.ndarray, anomaly_map: np.ndarray, mask_thre: float = 0.
     return [mask, mask_outline, superimposed_map]
 
 
-def save_image(save_path: str, pred_score: float, image: np.ndarray, mask: np.ndarray, mask_outline: np.ndarray, superimposed_map: np.ndarray):
+def save_image(save_path: str, image: np.ndarray, mask: np.ndarray, mask_outline: np.ndarray, superimposed_map: np.ndarray, pred_score: float = 0.0):
     """保存图片
 
     Args:
         save_path (str):    保存路径
-        pred_score (float): 预测得分
         image (np.ndarray): 原图
         mask (np.ndarray):  mask
         mask_outline (np.ndarray): mask边缘
         superimposed_map (np.ndarray): 热力图+原图
+        pred_score (float): 预测得分. Defaults to 0.0
     """
     figsize = (4 * 9, 9)
     figure, axes = plt.subplots(1, 4, figsize=figsize)
@@ -408,4 +406,4 @@ def save_image(save_path: str, pred_score: float, image: np.ndarray, mask: np.nd
 
 
 if __name__ == "__main__":
-    draw_score([0.1, 0.4, 0.345, 0.8, 0.8, 0.3, 0.3, 0.4, 0.6, 0.5, 0.3, 0.4, 1, 0.9], "./results")
+    pass
