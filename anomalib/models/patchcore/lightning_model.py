@@ -140,3 +140,10 @@ class PatchcoreLightning(Patchcore):
         )
         self.hparams: Union[DictConfig, ListConfig]  # type: ignore
         self.save_hyperparameters(hparams)
+
+
+if __name__ == "__main__":
+    model = Patchcore((224, 224), "resnet18", ["layer2", "layer3"])
+    pth_path = r"D:/ai/code/abnormal/anomalib/results/patchcore/mvtec/carpet/run/weights/model.ckpt"
+    pth = torch.load(pth_path)
+    model.load_state_dict(pth["state_dict"])
