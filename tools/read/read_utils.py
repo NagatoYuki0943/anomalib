@@ -1,5 +1,6 @@
 import numpy as np
 import json
+import yaml
 import cv2
 import torch
 from torch import Tensor
@@ -69,8 +70,8 @@ def get_transform(height: int, width: int, tensor = True) -> Callable:
 #-----------------------------#
 #   获取meta_data
 #-----------------------------#
-def get_meta_data(path: str) -> dict:
-    """获取 image_threshold, pixel_threshold, min, max
+def get_json(path: str) -> dict:
+    """get yaml config
 
     Args:
         path (str): json file path
@@ -80,6 +81,23 @@ def get_meta_data(path: str) -> dict:
     """
     with open(path, mode='r', encoding='utf-8') as f:
         data = json.load(f)
+    return data
+
+
+#-----------------------------#
+#   获取yaml config
+#-----------------------------#
+def get_yaml(path: str) -> dict:
+    """get yaml config
+
+    Args:
+        path (str): yaml file path
+
+    Returns:
+        meta_data(dict): data
+    """
+    with open(path, mode='r', encoding='utf-8') as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
     return data
 
 

@@ -6,7 +6,7 @@ import os
 from statistics import mean
 
 from infer import Inference
-from read_utils import load_image, get_transform, get_meta_data, post_process, gen_images, save_image, draw_score
+from read_utils import load_image, get_transform, get_json, post_process, gen_images, save_image, draw_score
 
 
 class TorchscriptInference(Inference):
@@ -20,7 +20,7 @@ class TorchscriptInference(Inference):
         super().__init__()
         self.use_cuda = use_cuda
         # 超参数
-        self.meta = get_meta_data(meta_path)
+        self.meta = get_json(meta_path)
         # 载入模型
         self.model = self.get_model(model_path)
         self.model.eval()
