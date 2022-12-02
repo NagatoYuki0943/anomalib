@@ -10,7 +10,7 @@ import os
 from statistics import mean
 
 from infer import Inference
-from read_utils import load_image, get_transform, get_meta_data, post_process, gen_images, save_image, draw_score
+from read_utils import load_image, get_transform, get_json, post_process, gen_images, save_image, draw_score
 
 
 """openvino图片预处理方法
@@ -50,7 +50,7 @@ class OVInference(Inference):
         super().__init__()
         self.openvino_preprocess = openvino_preprocess
         # 1.超参数
-        self.meta  = get_meta_data(meta_path)
+        self.meta  = get_json(meta_path)
         # 2.载入模型
         self.model = self.get_model(model_path, mode)
         # 3.保存模型输入输出
