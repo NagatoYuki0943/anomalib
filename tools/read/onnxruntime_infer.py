@@ -88,8 +88,9 @@ class OrtInference(Inference):
         """预热模型
         """
         infer_height, infer_width = self.meta["infer_size"]
-        x = np.zeros((1, 3, infer_height, infer_width), dtype=np.float32)
-        self.model.run(None, {self.model.get_inputs()[0].name: x})
+        # [h w c], 这是opencv读取图片的shape
+        x = np.zeros((infer_height, infer_width, 3), dtype=np.float32)
+        self.infer(x)
 
 
     def infer(self, image: np.ndarray) -> tuple[np.ndarray, float]:

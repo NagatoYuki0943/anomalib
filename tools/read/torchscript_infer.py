@@ -44,11 +44,9 @@ class TorchscriptInference(Inference):
         """预热模型
         """
         infer_height, infer_width = self.meta["infer_size"]
-        x = torch.zeros(1, 3, infer_height, infer_width)
-        if self.use_cuda:
-            x = x.cuda()
-        with torch.inference_mode():
-            self.model(x)
+        # [h w c], 这是opencv读取图片的shape
+        x = np.zeros((infer_height, infer_width, 3), dtype=np.float32)
+        self.infer(x)
 
 
     def infer(self, image: np.ndarray) -> tuple[np.ndarray, float]:
