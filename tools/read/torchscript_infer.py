@@ -188,6 +188,6 @@ if __name__ == "__main__":
     model_path = "./results/patchcore/mvtec/bottle/256/optimization/model_gpu.torchscript"
     meta_path  = "./results/patchcore/mvtec/bottle/256/optimization/meta_data.json"
     save_path  = "./results/patchcore/mvtec/bottle/256/torchscript_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle/256/result"
+    save_dir   = "./results/patchcore/mvtec/bottle/256/torchscript_result"
     single(model_path, meta_path, image_path, save_path, use_cuda=True)   # 注意: 使用cuda时要使用gpu模型
     # multi(model_path, meta_path, image_dir, save_dir, use_cuda=True)    # 注意: 使用cuda时要使用gpu模型

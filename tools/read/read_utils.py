@@ -204,6 +204,24 @@ def post_process(
     return anomaly_map, float(pred_score)
 
 
+def softmax(x: np.ndarray, axis=0) -> np.ndarray:
+    """numpy softmax
+    将每个值求e的指数全都变为大于0的值,然后除以求指数之后的总和
+    :math:`\text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}`
+
+    Args:
+        x (np.ndarray): 计算的数据
+        axis (int, optional): 在那个维度上计算. Defaults to 0.
+
+    Returns:
+        np.ndarray: 计算结果
+    """
+    # 为了稳定地计算softmax概率， 一般会减掉最大的那个元素
+    x -= np.max(x, axis=axis, keepdims=True)
+    # print(x)              # [-4. -3. -2. -1.  0.]
+    return np.exp(x) / np.sum(np.exp(x), axis=axis, keepdims=True)
+
+
 #-----------------------------#
 #   单通道热力图转换为rgb
 #-----------------------------#

@@ -230,6 +230,6 @@ if __name__ == "__main__":
     model_path = "./results/patchcore/mvtec/bottle/256/optimization/model.onnx"
     meta_path  = "./results/patchcore/mvtec/bottle/256/optimization/meta_data.json"
     save_path  = "./results/patchcore/mvtec/bottle/256/onnxruntime_output.jpg"
-    save_dir   = "./results/patchcore/mvtec/bottle/256/result"
+    save_dir   = "./results/patchcore/mvtec/bottle/256/onnxruntime_result"
     single(model_path, meta_path, image_path, save_path, mode="cuda")
     # multi(model_path, meta_path, image_dir, save_dir, mode="cuda")
