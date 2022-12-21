@@ -58,7 +58,13 @@ class OVInference(Inference):
         self.outputs = self.model.outputs
         # print(f"inputs: {self.inputs}")   # inputs: [<ConstOutput: names[input] shape{1,3,224,224} type: f32>]
         # print(f"outputs: {self.outputs}") # outputs: [<ConstOutput: names[output] shape{1,1,224,224} type: f32>, <ConstOutput: names[278] shape{1} type: f32>]
-        # 4.预热模型
+        # 4.transform
+        infer_height, infer_width = self.meta["infer_size"] # 推理时使用的图片大小
+        if self.openvino_preprocess:
+            self.transform = get_transform(infer_height, infer_width, "openvino")
+        else:
+            self.transform = get_transform(infer_height, infer_width, "numpy")
+        # 5.预热模型
         self.warm_up()
 
 
@@ -130,17 +136,8 @@ class OVInference(Inference):
         self.meta["image_size"] = [image.shape[0], image.shape[1]]
 
         # 2.图片预处理
-        # 推理时使用的图片大小
-        infer_height, infer_width = self.meta["infer_size"]
-        if self.openvino_preprocess:
-            # 使用openvino数据预处理要缩放图片
-            x = cv2.resize(image, (infer_height, infer_width))
-            x = x.transpose(2, 0, 1)            # [h, w, c] -> [c, h, w]
-        else:
-            transform = get_transform(infer_height, infer_width, tensor=False)
-            x = transform(image=image)['image'] # [c, h, w]
-        # [c, h, w] -> [b, c, h, w]
-        x = np.expand_dims(x, axis=0)
+        x = self.transform(image=image)['image'] # [c, h, w]
+        x = np.expand_dims(x, axis=0)            # [c, h, w] -> [b, c, h, w]
         # x = np.ones((1, 3, 224, 224))
         x = x.astype(dtype=np.float32)
 

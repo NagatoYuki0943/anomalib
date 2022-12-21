@@ -30,17 +30,17 @@ def load_image(image_path: str) -> np.ndarray:
 #   图片预处理
 #   支持pytorch和numpy
 #-----------------------------#
-def get_transform(height: int, width: int, tensor = True) -> Callable:
+def get_transform(height: int, width: int, mode: str = "tensor") -> Callable:
     """图片预处理,支持pytorch和numpy
 
     Args:
         height (int): 缩放的高
         width (int):  缩放的宽
-        tensor (bool, optional): pytorch or numpy. Defaults to True.
+        mode (str, optional): tensor, numpy, openvino. Defaults to tensor.
     """
     mean = np.array((0.485, 0.456, 0.406))
     std  = np.array((0.229, 0.224, 0.225))
-    if tensor:
+    if mode == "tensor":
         return A.Compose(
             [
                 A.Resize(height=height, width=width, always_apply=True),
@@ -55,13 +55,20 @@ def get_transform(height: int, width: int, tensor = True) -> Callable:
         #         transforms.Normalize(mean, std)     # 减去均值(前面),除以标准差(后面)
         #     ]
         # )
-    else:
+    elif mode == "numpy":
         def transform(image: np.ndarray) -> np.ndarray:
             image = cv2.resize(image, [width, height])
             image = image.astype(np.float32)
             image /= 255.0
             image -= mean
             image /= std
+            image = image.transpose(2, 0, 1)    # [h, w, c] -> [c, h, w]
+            return {"image": image}
+        return transform
+    elif mode == "openvino":
+        def transform(image: np.ndarray) -> np.ndarray:
+            image = cv2.resize(image, [width, height])
+            image = image.astype(np.float32)
             image = image.transpose(2, 0, 1)    # [h, w, c] -> [c, h, w]
             return {"image": image}
         return transform
