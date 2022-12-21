@@ -58,7 +58,7 @@ logging:
   log_graph: false # Logs the model graph to respective logger.
 
 optimization:
-  export_mode: openvino # options: onnx, openvino. Exporting openvino will first export onnx.
+  export_mode: openvino # options: onnx, openvino. Onnx will be exported before exporting openvino.
 
 # PL Trainer Args. Don't add extra parameter here.
 trainer:

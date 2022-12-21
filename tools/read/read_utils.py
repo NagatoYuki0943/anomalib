@@ -30,17 +30,17 @@ def load_image(image_path: str) -> np.ndarray:
 #   图片预处理
 #   支持pytorch和numpy
 #-----------------------------#
-def get_transform(height: int, width: int, mode: str = "tensor") -> Callable:
+def get_transform(height: int, width: int, mode: str = "pytorch") -> Callable:
     """图片预处理,支持pytorch和numpy
 
     Args:
         height (int): 缩放的高
         width (int):  缩放的宽
-        mode (str, optional): tensor, numpy, openvino. Defaults to tensor.
+        mode (str, optional): pytorch, numpy, openvino. Defaults to pytorch.
     """
     mean = np.array((0.485, 0.456, 0.406))
     std  = np.array((0.229, 0.224, 0.225))
-    if mode == "tensor":
+    if mode == "pytorch":
         return A.Compose(
             [
                 A.Resize(height=height, width=width, always_apply=True),

@@ -26,7 +26,7 @@ class TorchscriptInference(Inference):
         self.model.eval()
         # 3.transform
         infer_height, infer_width = self.meta["infer_size"] # 推理时使用的图片大小
-        self.transform = get_transform(infer_height, infer_width, "tensor")
+        self.transform = get_transform(infer_height, infer_width, "pytorch")
         # 4.预热模型
         self.warm_up()
 
