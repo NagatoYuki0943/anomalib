@@ -3,25 +3,24 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch
 from omegaconf import DictConfig, ListConfig
 from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning.utilities.cli import MODEL_REGISTRY
-from torch import optim
+from pytorch_lightning.utilities.types import STEP_OUTPUT
+from torch import Tensor, optim
 
 from anomalib.models.components import AnomalyModule
 from anomalib.models.fastflow.loss import FastflowLoss
 from anomalib.models.fastflow.torch_model import FastflowModel
 
 
-@MODEL_REGISTRY
 class Fastflow(AnomalyModule):
     """PL Lightning Module for the FastFlow algorithm.
 
     Args:
-        input_size (Tuple[int, int]): Model input size.
+        input_size (tuple[int, int]): Model input size.
         backbone (str): Backbone CNN network
         pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
         flow_steps (int, optional): Flow steps.
@@ -31,13 +30,13 @@ class Fastflow(AnomalyModule):
 
     def __init__(
         self,
-        input_size: Tuple[int, int],
+        input_size: tuple[int, int],
         backbone: str,
         pre_trained: bool = True,
         flow_steps: int = 8,
         conv3x3_only: bool = False,
         hidden_ratio: float = 1.0,
-    ):
+    ) -> None:
         super().__init__()
 
         self.model = FastflowModel(
@@ -50,31 +49,34 @@ class Fastflow(AnomalyModule):
         )
         self.loss = FastflowLoss()
 
-    def training_step(self, batch, _):  # pylint: disable=arguments-differ
+    def training_step(self, batch: dict[str, str | Tensor], *args, **kwargs) -> STEP_OUTPUT:
         """Forward-pass input and return the loss.
 
         Args:
-            batch (Tensor): Input batch
+            batch (batch: dict[str, str | Tensor]): Input batch
             _batch_idx: Index of the batch.
 
         Returns:
             STEP_OUTPUT: Dictionary containing the loss value.
         """
+        del args, kwargs  # These variables are not used.
+
         hidden_variables, jacobians = self.model(batch["image"])
         loss = self.loss(hidden_variables, jacobians)
         self.log("train_loss", loss.item(), on_epoch=True, prog_bar=True, logger=True)
         return {"loss": loss}
 
-    def validation_step(self, batch, _):  # pylint: disable=arguments-differ
+    def validation_step(self, batch: dict[str, str | Tensor], *args, **kwargs) -> STEP_OUTPUT:
         """Forward-pass the input and return the anomaly map.
 
         Args:
-            batch (Tensor): Input batch
-            _batch_idx: Index of the batch.
+            batch (dict[str, str | Tensor]): Input batch
 
         Returns:
-            dict: batch dictionary containing anomaly-maps.
+            STEP_OUTPUT | None: batch dictionary containing anomaly-maps.
         """
+        del args, kwargs  # These variables are not used.
+
         anomaly_maps = self.model(batch["image"])
         batch["anomaly_maps"] = anomaly_maps
         return batch
@@ -84,10 +86,10 @@ class FastflowLightning(Fastflow):
     """PL Lightning Module for the FastFlow algorithm.
 
     Args:
-        hparams (Union[DictConfig, ListConfig]): Model params
+        hparams (DictConfig | ListConfig): Model params
     """
 
-    def __init__(self, hparams: Union[DictConfig, ListConfig]) -> None:
+    def __init__(self, hparams: DictConfig | ListConfig) -> None:
         super().__init__(
             input_size=hparams.model.input_size,
             backbone=hparams.model.backbone,
@@ -96,10 +98,10 @@ class FastflowLightning(Fastflow):
             conv3x3_only=hparams.model.conv3x3_only,
             hidden_ratio=hparams.model.hidden_ratio,
         )
-        self.hparams: Union[DictConfig, ListConfig]  # type: ignore
+        self.hparams: DictConfig | ListConfig  # type: ignore
         self.save_hyperparameters(hparams)
 
-    def configure_callbacks(self):
+    def configure_callbacks(self) -> list[EarlyStopping]:
         """Configure model-specific callbacks.
 
         Note:

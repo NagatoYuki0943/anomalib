@@ -4,10 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [v0.4.0rc2] - 2023-02-10
 
 ### Added
 
+- Add ShanghaiTech Campus video anomaly detection dataset (<https://github.com/openvinotoolkit/anomalib/pull/869>)
+- Add `pyupgrade` to `pre-commit` configs, and refactor based on `pyupgrade` and `refurb` (<https://github.com/openvinotoolkit/anomalib/pull/845>)
 - Add [CFA](https://arxiv.org/abs/2206.04325) model implementation (<https://github.com/openvinotoolkit/anomalib/pull/783>)
 - Add RKDE model implementation (<https://github.com/openvinotoolkit/anomalib/pull/821>)
 - Add Visual Anomaly (VisA) dataset adapter (<https://github.com/openvinotoolkit/anomalib/pull/824>)
@@ -27,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Remove the dependecy on a specific `torchvision` and `torchmetrics` packages.
+- Bump PyTorch Lightning version to v.1.9.\* (<https://github.com/openvinotoolkit/anomalib/pull/870>)
 - Make input image normalization and center cropping configurable from config (https://github.com/openvinotoolkit/anomalib/pull/822)
 - Improve flexibility and configurability of subset splitting (https://github.com/openvinotoolkit/anomalib/pull/822)
 - Switch to new datamodules design (https://github.com/openvinotoolkit/anomalib/pull/822)
@@ -49,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Fix bug in MVTec dataset download (<https://github.com/openvinotoolkit/anomalib/pull/842>)
 - Add early stopping to CS-Flow model (<https://github.com/openvinotoolkit/anomalib/pull/817>)
 - Fix remote container by removing version pinning in Docker files (<https://github.com/openvinotoolkit/anomalib/pull/797>)
 - Fix PatchCore performance deterioration by reverting changes to Average Pooling layer (<https://github.com/openvinotoolkit/anomalib/pull/791>)

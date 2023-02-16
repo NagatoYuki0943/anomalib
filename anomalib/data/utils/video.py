@@ -3,10 +3,14 @@
 # Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any
 
+import cv2
 from torch import Tensor
 from torchvision.datasets.video_utils import VideoClips
 
@@ -19,14 +23,14 @@ class ClipsIndexer(VideoClips, ABC):
     of folders with single-frame images), the subclass should implement at least get_clip and _compute_frame_pts.
 
     Args:
-        video_paths (List[str]): List of video paths that make up the dataset.
-        mask_paths (List[str]): List of paths to the masks for each video in the dataset.
+        video_paths (list[str]): List of video paths that make up the dataset.
+        mask_paths (list[str]): List of paths to the masks for each video in the dataset.
     """
 
     def __init__(
         self,
-        video_paths: List[str],
-        mask_paths: List[str],
+        video_paths: list[str],
+        mask_paths: list[str],
         clip_length_in_frames: int = 1,
         frames_between_clips: int = 1,
     ) -> None:
@@ -42,11 +46,11 @@ class ClipsIndexer(VideoClips, ABC):
         return self.clips[video_idx][-1][-1].item()
 
     @abstractmethod
-    def get_mask(self, idx: int) -> Optional[Tensor]:
+    def get_mask(self, idx: int) -> Tensor | None:
         """Return the masks for the given index."""
         raise NotImplementedError
 
-    def get_item(self, idx: int) -> Dict[str, Any]:
+    def get_item(self, idx: int) -> dict[str, Any]:
         """Return a dictionary containing the clip, mask, video path and frame indices."""
         with warnings.catch_warnings():
             # silence warning caused by bug in torchvision, see https://github.com/pytorch/vision/issues/5787
@@ -66,3 +70,34 @@ class ClipsIndexer(VideoClips, ABC):
         )
 
         return item
+
+
+def convert_video(input_path: Path, output_path: Path, codec: str = "MP4V") -> None:
+    """Convert video file to a different codec.
+
+    Args:
+        input_path (Path): Path to the input video.
+        output_path (Path): Path to the target output video.
+        codec (str): fourcc code of the codec that will be used for compression of the output file.
+    """
+    if not output_path.parent.exists():
+        output_path.parent.mkdir(parents=True)
+
+    # create video reader for input file
+    video_reader = cv2.VideoCapture(str(input_path))
+
+    # create video writer for output file
+    fourcc = cv2.VideoWriter_fourcc(*codec)
+    frame_width = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = int(video_reader.get(cv2.CAP_PROP_FPS))
+    video_writer = cv2.VideoWriter(str(output_path), fourcc, fps, (frame_width, frame_height))
+
+    # read frames
+    success, frame = video_reader.read()
+    while success:
+        video_writer.write(frame)
+        success, frame = video_reader.read()
+
+    video_reader.release()
+    video_writer.release()
