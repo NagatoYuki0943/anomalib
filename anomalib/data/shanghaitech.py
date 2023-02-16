@@ -1,4 +1,14 @@
-"""UCSD Pedestrian dataset."""
+"""ShanghaiTech Campus Dataset.
+
+Description:
+    This module contains PyTorch Dataset and PyTorch
+        Lightning DataModule for the ShanghaiTech Campus dataset.
+    If the dataset is not on the file system, the DataModule class downloads and
+        extracts the dataset and converts video files to a format that is readable by pyav.
+Reference:
+    - W. Liu and W. Luo, D. Lian and S. Gao. "Future Frame Prediction for Anomaly Detection -- A New Baseline."
+    IEEE Conference on Computer Vision and Pattern Recognition (CVPR). 2018.
+"""
 
 # Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -8,11 +18,11 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from shutil import move
-from typing import Any, Callable
+from typing import Any
 
 import albumentations as A
-import cv2
 import numpy as np
+import pandas as pd
 import torch
 from pandas import DataFrame
 from torch import Tensor
@@ -28,61 +38,69 @@ from anomalib.data.utils import (
     get_transforms,
     read_image,
 )
-from anomalib.data.utils.video import ClipsIndexer
+from anomalib.data.utils.video import ClipsIndexer, convert_video
 
 logger = logging.getLogger(__name__)
 
-DOWNLOAD_INFO = DownloadInfo(
-    name="UCSD Pedestrian",
-    url="http://www.svcl.ucsd.edu/projects/anomaly/UCSD_Anomaly_Dataset.tar.gz",
-    hash="5006421b89885f45a6f93b041145f2eb",
+DATASET_DOWNLOAD_INFO = DownloadInfo(
+    name="ShanghaiTech Dataset",
+    url="http://101.32.75.151:8181/dataset/shanghaitech.tar.gz",
+    hash="08494decd30fb0fa213b519a9c555040",
 )
 
 
-def make_ucsd_dataset(path: Path, split: str | Split | None = None) -> DataFrame:
-    """Create UCSD Pedestrian dataset by parsing the file structure.
+def make_shanghaitech_dataset(root: Path, scene: int, split: Split | str | None = None) -> DataFrame:
+    """Create ShanghaiTech dataset by parsing the file structure.
 
     The files are expected to follow the structure:
-        path/to/dataset/category/split/video_id/image_filename.tif
-        path/to/dataset/category/split/video_id_gt/mask_filename.bmp
+        path/to/dataset/[training_videos|testing_videos]/video_filename.avi
+        path/to/ground_truth/mask_filename.mat
 
     Args:
         root (Path): Path to dataset
-        split (str | Split | None, optional): Dataset split (ie., either train or test). Defaults to None.
+        scene (int): Index of the dataset scene (category) in range [1, 13]
+        split (Split | str | None, optional): Dataset split (ie., either train or test). Defaults to None.
 
     Example:
-        The following example shows how to get testing samples from UCSDped2 category:
+        The following example shows how to get testing samples from ShanghaiTech dataset:
 
-        >>> root = Path('./UCSDped')
-        >>> category = 'UCSDped2'
-        >>> path = root / category
-        >>> path
-        PosixPath('UCSDped/UCSDped2')
-
-        >>> samples = make_ucsd_dataset(path, split='test')
+        >>> root = Path('./shanghaiTech')
+        >>> scene = 1
+        >>> samples = make_avenue_dataset(path, scene, split='test')
         >>> samples.head()
-           root             folder image_path                    mask_path                         split
-        0  UCSDped/UCSDped2 Test   UCSDped/UCSDped2/Test/Test001 UCSDped/UCSDped2/Test/Test001_gt  test
-        1  UCSDped/UCSDped2 Test   UCSDped/UCSDped2/Test/Test002 UCSDped/UCSDped2/Test/Test002_gt  test
+            root            image_path                          split   mask_path
+        0	shanghaitech	shanghaitech/testing/frames/01_0014	test	shanghaitech/testing/test_pixel_mask/01_0014.npy
+        1	shanghaitech	shanghaitech/testing/frames/01_0015	test	shanghaitech/testing/test_pixel_mask/01_0015.npy
         ...
 
     Returns:
         DataFrame: an output dataframe containing samples for the requested split (ie., train or test)
     """
-    folders = [filename for filename in sorted(path.glob("*/*")) if filename.is_dir()]
-    folders = [folder for folder in folders if list(folder.glob("*.tif"))]
+    scene_prefix = str(scene).zfill(2)
 
-    samples_list = [(str(path),) + folder.parts[-2:] for folder in folders]
-    samples = DataFrame(samples_list, columns=["root", "folder", "image_path"])
+    # get paths to training videos
+    train_root = Path(root) / "training/converted_videos"
+    train_list = [(str(train_root),) + filename.parts[-2:] for filename in train_root.glob(f"{scene_prefix}_*.avi")]
+    train_samples = DataFrame(train_list, columns=["root", "folder", "image_path"])
+    train_samples["split"] = "train"
 
-    samples.loc[samples.folder == "Test", "mask_path"] = samples.image_path.str.split(".").str[0] + "_gt"
-    samples.loc[samples.folder == "Test", "mask_path"] = samples.root + "/" + samples.folder + "/" + samples.mask_path
-    samples.loc[samples.folder == "Train", "mask_path"] = ""
+    # get paths to testing folders
+    test_root = Path(root) / "testing/frames"
+    test_folders = [filename for filename in sorted(test_root.glob(f"{scene_prefix}_*")) if filename.is_dir()]
+    test_folders = [folder for folder in test_folders if len(list(folder.glob("*.jpg"))) > 0]
+    test_list = [(str(test_root),) + folder.parts[-2:] for folder in test_folders]
+    test_samples = DataFrame(test_list, columns=["root", "folder", "image_path"])
+    test_samples["split"] = "test"
 
-    samples["image_path"] = samples.root + "/" + samples.folder + "/" + samples.image_path
+    samples = pd.concat([train_samples, test_samples], ignore_index=True)
 
-    samples.loc[samples.folder == "Train", "split"] = "train"
-    samples.loc[samples.folder == "Test", "split"] = "test"
+    gt_root = Path(root) / "testing/test_pixel_mask"
+    samples["mask_path"] = ""
+    samples.loc[samples.root == str(test_root), "mask_path"] = (
+        str(gt_root) + "/" + samples.image_path.str.split(".").str[0] + ".npy"
+    )
+
+    samples["image_path"] = samples.root + "/" + samples.image_path
 
     if split:
         samples = samples[samples.split == split]
@@ -91,29 +109,43 @@ def make_ucsd_dataset(path: Path, split: str | Split | None = None) -> DataFrame
     return samples
 
 
-class UCSDpedClipsIndexer(ClipsIndexer):
-    """Clips class for UCSDped dataset."""
+class ShanghaiTechTrainClipsIndexer(ClipsIndexer):
+    """Clips indexer for ShanghaiTech dataset.
 
-    def get_mask(self, idx) -> np.ndarray | None:
+    The train and test subsets of the ShanghaiTech dataset use different file formats, so separate
+    clips indexer implementations are needed.
+    """
+
+    def get_mask(self, idx: int) -> Tensor | None:
+        """No masks available for training set."""
+        return None
+
+
+class ShanghaiTechTestClipsIndexer(ClipsIndexer):
+    """Clips indexer for the test set of the ShanghaiTech Campus dataset.
+
+    The train and test subsets of the ShanghaiTech dataset use different file formats, so separate
+    clips indexer implementations are needed.
+    """
+
+    def get_mask(self, idx: int) -> Tensor | None:
         """Retrieve the masks from the file system."""
 
         video_idx, frames_idx = self.get_clip_location(idx)
-        mask_folder = self.mask_paths[video_idx]
-        if mask_folder == "":  # no gt masks available for this clip
+        mask_file = self.mask_paths[video_idx]
+        if mask_file == "":  # no gt masks available for this clip
             return None
         frames = self.clips[video_idx][frames_idx]
 
-        mask_frames = sorted(Path(mask_folder).glob("*.bmp"))
-        mask_paths = [mask_frames[idx] for idx in frames.int()]
-
-        masks = np.stack([cv2.imread(str(mask_path), flags=0) / 255.0 for mask_path in mask_paths])
+        vid_masks = np.load(mask_file)
+        masks = np.take(vid_masks, frames, 0)
         return masks
 
     def _compute_frame_pts(self) -> None:
         """Retrieve the number of frames in each video."""
         self.video_pts = []
         for video_path in self.video_paths:
-            n_frames = len(list(Path(video_path).glob("*.tif")))
+            n_frames = len(list(Path(video_path).glob("*.jpg")))
             self.video_pts.append(Tensor(range(n_frames)))
 
         self.video_fps = [None] * len(self.video_paths)  # fps information cannot be inferred from folder structure
@@ -127,7 +159,7 @@ class UCSDpedClipsIndexer(ClipsIndexer):
         Returns:
             video (Tensor)
             audio (Tensor)
-            info (dict)
+            info (Dict)
             video_idx (int): index of the video in `video_paths`
         """
         if idx >= self.num_clips():
@@ -136,7 +168,7 @@ class UCSDpedClipsIndexer(ClipsIndexer):
         video_path = self.video_paths[video_idx]
         clip_pts = self.clips[video_idx][clip_idx]
 
-        frames = sorted(Path(video_path).glob("*.tif"))
+        frames = sorted(Path(video_path).glob("*.jpg"))
 
         frame_paths = [frames[pt] for pt in clip_pts.int()]
         video = torch.stack([Tensor(read_image(str(frame_path))) for frame_path in frame_paths])
@@ -144,15 +176,15 @@ class UCSDpedClipsIndexer(ClipsIndexer):
         return video, torch.empty((1, 0)), {}, video_idx
 
 
-class UCSDpedDataset(AnomalibVideoDataset):
-    """UCSDped Dataset class.
+class ShanghaiTechDataset(AnomalibVideoDataset):
+    """ShanghaiTech Dataset class.
 
     Args:
         task (TaskType): Task type, 'classification', 'detection' or 'segmentation'
         root (Path | str): Path to the root of the dataset
-        category (str): Sub-category of the dataset, e.g. 'bottle'
+        scene (int): Index of the dataset scene (category) in range [1, 13]
         transform (A.Compose): Albumentations Compose object describing the transforms that are applied to the inputs.
-        split (str | Split | None): Split of the dataset, usually Split.TRAIN or Split.TEST
+        split (Split): Split of the dataset, usually Split.TRAIN or Split.TEST
         clip_length_in_frames (int, optional): Number of video frames in each clip.
         frames_between_clips (int, optional): Number of frames between each consecutive video clip.
     """
@@ -160,38 +192,36 @@ class UCSDpedDataset(AnomalibVideoDataset):
     def __init__(
         self,
         task: TaskType,
-        root: str | Path,
-        category: str,
+        root: Path | str,
+        scene: int,
         transform: A.Compose,
         split: Split,
         clip_length_in_frames: int = 1,
         frames_between_clips: int = 1,
-    ) -> None:
+    ):
         super().__init__(task, transform, clip_length_in_frames, frames_between_clips)
 
-        self.root_category = Path(root) / category
+        self.root = root
+        self.scene = scene
         self.split = split
-        self.indexer_cls: Callable = UCSDpedClipsIndexer
+        self.indexer_cls = ShanghaiTechTrainClipsIndexer if self.split == Split.TRAIN else ShanghaiTechTestClipsIndexer
 
-    def _setup(self) -> None:
+    def _setup(self):
         """Create and assign samples."""
-        self.samples = make_ucsd_dataset(self.root_category, self.split)
+        self.samples = make_shanghaitech_dataset(self.root, self.scene, self.split)
 
 
-class UCSDped(AnomalibVideoDataModule):
-    """UCSDped DataModule class.
+class ShanghaiTech(AnomalibVideoDataModule):
+    """ShanghaiTech DataModule class.
 
     Args:
         root (Path | str): Path to the root of the dataset
-        category (str): Sub-category of the dataset, e.g. 'bottle'
+        scene (int): Index of the dataset scene (category) in range [1, 13]
         clip_length_in_frames (int, optional): Number of video frames in each clip.
         frames_between_clips (int, optional): Number of frames between each consecutive video clip.
-        task (TaskType): Task type, 'classification', 'detection' or 'segmentation'
+        task TaskType): Task type, 'classification', 'detection' or 'segmentation'
         image_size (int | tuple[int, int] | None, optional): Size of the input image.
             Defaults to None.
-        center_crop (int | tuple[int, int] | None, optional): When provided, the images will be center-cropped
-            to the provided dimensions.
-        normalize (bool): When True, the images will be normalized to the ImageNet statistics.
         center_crop (int | tuple[int, int] | None, optional): When provided, the images will be center-cropped
             to the provided dimensions.
         normalize (bool): When True, the images will be normalized to the ImageNet statistics.
@@ -212,13 +242,13 @@ class UCSDped(AnomalibVideoDataModule):
     def __init__(
         self,
         root: Path | str,
-        category: str,
+        scene: int,
         clip_length_in_frames: int = 1,
         frames_between_clips: int = 1,
         task: TaskType = TaskType.SEGMENTATION,
         image_size: int | tuple[int, int] | None = None,
         center_crop: int | tuple[int, int] | None = None,
-        normalization: str | InputNormalizationMethod = InputNormalizationMethod.IMAGENET,
+        normalization: InputNormalizationMethod | str = InputNormalizationMethod.IMAGENET,
         train_batch_size: int = 32,
         eval_batch_size: int = 32,
         num_workers: int = 8,
@@ -227,7 +257,7 @@ class UCSDped(AnomalibVideoDataModule):
         val_split_mode: ValSplitMode = ValSplitMode.FROM_TEST,
         val_split_ratio: float = 0.5,
         seed: int | None = None,
-    ) -> None:
+    ):
         super().__init__(
             train_batch_size=train_batch_size,
             eval_batch_size=eval_batch_size,
@@ -238,7 +268,7 @@ class UCSDped(AnomalibVideoDataModule):
         )
 
         self.root = Path(root)
-        self.category = category
+        self.scene = scene
 
         transform_train = get_transforms(
             config=transform_config_train,
@@ -253,35 +283,63 @@ class UCSDped(AnomalibVideoDataModule):
             normalization=InputNormalizationMethod(normalization),
         )
 
-        self.train_data = UCSDpedDataset(
+        self.train_data = ShanghaiTechDataset(
             task=task,
             transform=transform_train,
             clip_length_in_frames=clip_length_in_frames,
             frames_between_clips=frames_between_clips,
             root=root,
-            category=category,
+            scene=scene,
             split=Split.TRAIN,
         )
 
-        self.test_data = UCSDpedDataset(
+        self.test_data = ShanghaiTechDataset(
             task=task,
             transform=transform_eval,
             clip_length_in_frames=clip_length_in_frames,
             frames_between_clips=frames_between_clips,
             root=root,
-            category=category,
+            scene=scene,
             split=Split.TEST,
         )
 
     def prepare_data(self) -> None:
-        """Download the dataset if not available."""
-        if (self.root / self.category).is_dir():
+        """Download the dataset and convert video files."""
+        training_root = self.root / "training"
+        if training_root.is_dir():
             logger.info("Found the dataset.")
         else:
-            download_and_extract(self.root, DOWNLOAD_INFO)
+            download_and_extract(self.root, DATASET_DOWNLOAD_INFO)
 
             # move contents to root
-            extracted_folder = self.root / "UCSD_Anomaly_Dataset.v1p2"
+            extracted_folder = self.root / "shanghaitech"
             for filename in extracted_folder.glob("*"):
                 move(str(filename), str(self.root / filename.name))
             extracted_folder.rmdir()
+
+        # convert images if not done already
+        vid_dir = training_root / "videos"
+        converted_vid_dir = training_root / "converted_videos"
+        vid_count = len(list(vid_dir.glob("*")))
+        converted_vid_count = len(list(converted_vid_dir.glob("*")))
+        if not vid_count == converted_vid_count:
+            self._convert_training_videos(vid_dir, converted_vid_dir)
+
+    @staticmethod
+    def _convert_training_videos(video_folder: Path, target_folder: Path) -> None:
+        """Re-code the training videos to ensure correct reading of frames by torchvision.
+
+        The encoding of the raw video files in the ShanghaiTech dataset causes some problems when
+        reading the frames using pyav. To prevent this, we read the frames from the video files using opencv,
+        and write them to a new video file that can be parsed correctly with pyav.
+
+        Args:
+            video_folder (Path): Path to the folder of training videos.
+            target_folder (Path): File system location where the converted videos will be stored.
+        """
+        training_videos = sorted(list(video_folder.glob("*")))
+        for video_idx, video_path in enumerate(training_videos):
+            logger.info("Converting training video %s (%i/%i)...", video_path.name, video_idx + 1, len(training_videos))
+            file_name = video_path.name
+            target_path = target_folder / file_name
+            convert_video(video_path, target_path, codec="XVID")

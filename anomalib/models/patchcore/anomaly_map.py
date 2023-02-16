@@ -3,9 +3,8 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple, Union
+from __future__ import annotations
 
-import torch
 import torch.nn.functional as F
 from omegaconf import ListConfig
 from torch import Tensor, nn
@@ -18,7 +17,7 @@ class AnomalyMapGenerator(nn.Module):
 
     def __init__(
         self,
-        input_size: Union[ListConfig, Tuple],   # [224, 224]
+        input_size: ListConfig | tuple, # [224, 224]
         sigma: int = 4,
     ) -> None:
         super().__init__()
@@ -26,7 +25,7 @@ class AnomalyMapGenerator(nn.Module):
         kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
         self.blur = GaussianBlur2d(kernel_size=(kernel_size, kernel_size), sigma=(sigma, sigma), channels=1)
 
-    def compute_anomaly_map(self, patch_scores: Tensor) -> torch.Tensor:
+    def compute_anomaly_map(self, patch_scores: Tensor) -> Tensor:
         """ 取topk的每个像素最小值([:,0]),上采样到原图尺寸使用高斯模糊绘制热力图
             Pixel Level Anomaly Heatmap.
 
@@ -34,7 +33,7 @@ class AnomalyMapGenerator(nn.Module):
             patch_scores (torch.Tensor): Patch-level anomaly scores                 [28*28, 9]
 
         Returns:
-            torch.Tensor: Map of the pixel-level anomaly scores
+            Tensor: Map of the pixel-level anomaly scores
         """
         # scale_factor代替size
         # scale_factor = [int(self.input_size[0] / patch_scores.shape[-2]), int(self.input_size[1] / patch_scores.shape[-1])]

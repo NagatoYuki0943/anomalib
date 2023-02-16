@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from __future__ import annotations
+
 import logging
-from typing import List, Optional
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.utilities.cli import CALLBACK_REGISTRY
 
 from anomalib.data import TaskType
 from anomalib.models.components.base.anomaly_module import AnomalyModule
@@ -20,16 +20,15 @@ logger = logging.getLogger(__name__)
 __all__ = ["MetricsConfigurationCallback"]
 
 
-@CALLBACK_REGISTRY
 class MetricsConfigurationCallback(Callback):
     """Metrics Configuration Callback."""
 
     def __init__(
         self,
         task: TaskType = TaskType.SEGMENTATION,
-        image_metrics: Optional[List[str]] = None,
-        pixel_metrics: Optional[List[str]] = None,
-    ):
+        image_metrics: list[str] | None = None,
+        pixel_metrics: list[str] | None = None,
+    ) -> None:
         """Create image and pixel-level AnomalibMetricsCollection.
 
         This callback creates AnomalibMetricsCollection based on the
@@ -39,8 +38,8 @@ class MetricsConfigurationCallback(Callback):
 
         Args:
             task (TaskType): Task type of the current run.
-            image_metrics (Optional[List[str]]): List of image-level metrics.
-            pixel_metrics (Optional[List[str]]): List of pixel-level metrics.
+            image_metrics (list[str] | None): List of image-level metrics.
+            pixel_metrics (list[str] | None): List of pixel-level metrics.
         """
         self.task = task
         self.image_metric_names = image_metrics
@@ -48,20 +47,22 @@ class MetricsConfigurationCallback(Callback):
 
     def setup(
         self,
-        _trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        stage: Optional[str] = None,  # pylint: disable=unused-argument
+        trainer: pl.Trainer,
+        pl_module: AnomalyModule,
+        stage: str | None = None,
     ) -> None:
         """Setup image and pixel-level AnomalibMetricsCollection within Anomalib Model.
 
         Args:
-            _trainer (pl.Trainer): PyTorch Lightning Trainer
-            pl_module (pl.LightningModule): Anomalib Model that inherits pl LightningModule.
-            stage (Optional[str], optional): fit, validate, test or predict. Defaults to None.
+            trainer (pl.Trainer): PyTorch Lightning Trainer
+            pl_module (AnomalyModule): Anomalib Model that inherits pl LightningModule.
+            stage (str | None, optional): fit, validate, test or predict. Defaults to None.
         """
+        del trainer, stage  # These variables are not used.
+
         image_metric_names = [] if self.image_metric_names is None else self.image_metric_names
 
-        pixel_metric_names: List[str]
+        pixel_metric_names: list[str]
         if self.pixel_metric_names is None:
             pixel_metric_names = []
         elif self.task == TaskType.CLASSIFICATION:

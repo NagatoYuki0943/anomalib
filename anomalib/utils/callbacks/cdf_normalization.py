@@ -3,12 +3,13 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pytorch_lightning as pl
 from pytorch_lightning import Callback, Trainer
-from pytorch_lightning.utilities.cli import CALLBACK_REGISTRY
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch.distributions import LogNormal
 
@@ -20,17 +21,17 @@ from anomalib.utils.metrics import AnomalyScoreDistribution
 logger = logging.getLogger(__name__)
 
 
-@CALLBACK_REGISTRY
 class CdfNormalizationCallback(Callback):
     """Callback that standardizes the image-level and pixel-level anomaly scores."""
 
-    def __init__(self):
-        self.image_dist: Optional[LogNormal] = None
-        self.pixel_dist: Optional[LogNormal] = None
+    def __init__(self) -> None:
+        self.image_dist: LogNormal | None = None
+        self.pixel_dist: LogNormal | None = None
 
-    # pylint: disable=unused-argument
-    def setup(self, trainer: pl.Trainer, pl_module: AnomalyModule, stage: Optional[str] = None) -> None:
+    def setup(self, trainer: pl.Trainer, pl_module: AnomalyModule, stage: str | None = None) -> None:
         """Adds training_distribution metrics to normalization metrics."""
+        del trainer, stage  # These variabels are not used.
+
         if not hasattr(pl_module, "normalization_metrics"):
             pl_module.normalization_metrics = AnomalyScoreDistribution().cpu()
         elif not isinstance(pl_module.normalization_metrics, AnomalyScoreDistribution):
@@ -39,15 +40,16 @@ class CdfNormalizationCallback(Callback):
                 f" got {type(pl_module.normalization_metrics)}"
             )
 
-    # pylint: disable=unused-argument
     def on_test_start(self, trainer: pl.Trainer, pl_module: AnomalyModule) -> None:
         """Called when the test begins."""
+        del trainer  # `trainer` variable is not used.
+
         if pl_module.image_metrics is not None:
             pl_module.image_metrics.set_threshold(0.5)
         if pl_module.pixel_metrics is not None:
             pl_module.pixel_metrics.set_threshold(0.5)
 
-    def on_validation_epoch_start(self, trainer: "pl.Trainer", pl_module: AnomalyModule) -> None:
+    def on_validation_epoch_start(self, trainer: pl.Trainer, pl_module: AnomalyModule) -> None:
         """Called when the validation starts after training.
 
         Use the current model to compute the anomaly score distributions
@@ -59,51 +61,57 @@ class CdfNormalizationCallback(Callback):
 
     def on_validation_batch_end(
         self,
-        _trainer: pl.Trainer,
+        trainer: pl.Trainer,
         pl_module: AnomalyModule,
-        outputs: Optional[STEP_OUTPUT],
-        _batch: Any,
-        _batch_idx: int,
-        _dataloader_idx: int,
+        outputs: STEP_OUTPUT | None,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
         """Called when the validation batch ends, standardizes the predicted scores and anomaly maps."""
+        del trainer, batch, batch_idx, dataloader_idx  # These variables are not used.
+
         self._standardize_batch(outputs, pl_module)
 
     def on_test_batch_end(
         self,
-        _trainer: pl.Trainer,
+        trainer: pl.Trainer,
         pl_module: AnomalyModule,
-        outputs: Optional[STEP_OUTPUT],
-        _batch: Any,
-        _batch_idx: int,
-        _dataloader_idx: int,
+        outputs: STEP_OUTPUT | None,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
         """Called when the test batch ends, normalizes the predicted scores and anomaly maps."""
+        del trainer, batch, batch_idx, dataloader_idx  # These variables are not used.
+
         self._standardize_batch(outputs, pl_module)
         self._normalize_batch(outputs, pl_module)
 
     def on_predict_batch_end(
         self,
-        _trainer: pl.Trainer,
+        trainer: pl.Trainer,
         pl_module: AnomalyModule,
-        outputs: Dict,
-        _batch: Any,
-        _batch_idx: int,
-        _dataloader_idx: int,
+        outputs: dict,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
         """Called when the predict batch ends, normalizes the predicted scores and anomaly maps."""
+        del trainer, batch, batch_idx, dataloader_idx  # These variables are not used.
+
         self._standardize_batch(outputs, pl_module)
         self._normalize_batch(outputs, pl_module)
         outputs["pred_labels"] = outputs["pred_scores"] >= 0.5
 
-    def _collect_stats(self, trainer, pl_module):
+    def _collect_stats(self, trainer: pl.Trainer, pl_module: AnomalyModule) -> None:
         """Collect the statistics of the normal training data.
 
         Create a trainer and use it to predict the anomaly maps and scores of the normal training data. Then
          estimate the distribution of anomaly scores for normal data at the image and pixel level by computing
          the mean and standard deviations. A dictionary containing the computed statistics is stored in self.stats.
         """
-        predictions = Trainer(gpus=trainer.gpus).predict(
+        predictions = Trainer(accelerator=trainer.accelerator, devices=trainer.num_devices).predict(
             model=self._create_inference_model(pl_module), dataloaders=trainer.datamodule.train_dataloader()
         )
         pl_module.normalization_metrics.reset()
@@ -135,4 +143,5 @@ class CdfNormalizationCallback(Callback):
     def _normalize_batch(outputs: STEP_OUTPUT, pl_module: AnomalyModule) -> None:
         outputs["pred_scores"] = normalize(outputs["pred_scores"], pl_module.image_threshold.value)
         if "anomaly_maps" in outputs.keys():
+            outputs["anomaly_maps"] = normalize(outputs["anomaly_maps"], pl_module.pixel_threshold.value)
             outputs["anomaly_maps"] = normalize(outputs["anomaly_maps"], pl_module.pixel_threshold.value)

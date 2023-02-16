@@ -3,12 +3,13 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import logging
-from typing import List, Tuple, Union
 
 import torch
 from omegaconf import DictConfig, ListConfig
-from pytorch_lightning.utilities.cli import MODEL_REGISTRY
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import Tensor
 
 from anomalib.models.components import AnomalyModule
@@ -18,14 +19,13 @@ from .torch_model import DFMModel
 logger = logging.getLogger(__name__)
 
 
-@MODEL_REGISTRY
 class Dfm(AnomalyModule):
     """DFM: Deep Featured Kernel Density Estimation.
 
     Args:
         backbone (str): Backbone CNN network
         layer (str): Layer to extract features from the backbone CNN
-        input_size (Tuple[int, int]): Input size for the model.
+        input_size (tuple[int, int]): Input size for the model.
         pre_trained (bool, optional): Boolean to check whether to use a pre_trained backbone.
         pooling_kernel_size (int, optional): Kernel size to pool features extracted from the CNN.
             Defaults to 4.
@@ -40,12 +40,12 @@ class Dfm(AnomalyModule):
         self,
         backbone: str,
         layer: str,
-        input_size: Tuple[int, int],
+        input_size: tuple[int, int],
         pre_trained: bool = True,
         pooling_kernel_size: int = 4,
         pca_level: float = 0.97,
         score_type: str = "fre",
-    ):
+    ) -> None:
         super().__init__()
 
         self.model: DFMModel = DFMModel(
@@ -57,7 +57,7 @@ class Dfm(AnomalyModule):
             n_comps=pca_level,
             score_type=score_type,
         )
-        self.embeddings: List[Tensor] = []
+        self.embeddings: list[Tensor] = []
         self.score_type = score_type
 
     @staticmethod
@@ -65,18 +65,20 @@ class Dfm(AnomalyModule):
         """DFM doesn't require optimization, therefore returns no optimizers."""
         return None
 
-    def training_step(self, batch, _):  # pylint: disable=arguments-differ
+    def training_step(self, batch: dict[str, str | Tensor], *args, **kwargs) -> None:
         """Training Step of DFM.
 
         For each batch, features are extracted from the CNN.
 
         Args:
-          batch (Dict[str, Tensor]): Input batch
+          batch (dict[str, str | Tensor]): Input batch
           _: Index of the batch.
 
         Returns:
           Deep CNN features.
         """
+        del args, kwargs  # These variables are not used.
+
         embedding = self.model.get_features(batch["image"]).squeeze()
 
         # NOTE: `self.embedding` appends each batch embedding to
@@ -96,17 +98,19 @@ class Dfm(AnomalyModule):
         logger.info("Fitting a PCA and a Gaussian model to dataset.")
         self.model.fit(embeddings)
 
-    def validation_step(self, batch, _):  # pylint: disable=arguments-differ
+    def validation_step(self, batch: dict[str, str | Tensor], *args, **kwargs) -> STEP_OUTPUT:
         """Validation Step of DFM.
 
         Similar to the training step, features are extracted from the CNN for each batch.
 
         Args:
-          batch (List[Dict[str, Any]]): Input batch
+          batch (dict[str, str | Tensor]): Input batch
 
         Returns:
           Dictionary containing FRE anomaly scores and anomaly maps.
         """
+        del args, kwargs  # These variables are not used.
+
         if self.score_type == "fre":
             batch["anomaly_maps"], batch["pred_scores"] = self.model(batch["image"])
         elif self.score_type == "nll":
@@ -119,10 +123,10 @@ class DfmLightning(Dfm):
     """DFM: Deep Featured Kernel Density Estimation.
 
     Args:
-        hparams (Union[DictConfig, ListConfig]): Model params
+        hparams (DictConfig | ListConfig): Model params
     """
 
-    def __init__(self, hparams: Union[DictConfig, ListConfig]) -> None:
+    def __init__(self, hparams: DictConfig | ListConfig) -> None:
         super().__init__(
             input_size=hparams.model.input_size,
             backbone=hparams.model.backbone,
@@ -132,5 +136,5 @@ class DfmLightning(Dfm):
             pca_level=hparams.model.pca_level,
             score_type=hparams.model.score_type,
         )
-        self.hparams: Union[DictConfig, ListConfig]  # type: ignore
+        self.hparams: DictConfig | ListConfig  # type: ignore
         self.save_hyperparameters(hparams)

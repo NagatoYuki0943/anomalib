@@ -3,11 +3,12 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 import json
 import subprocess  # nosec
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
 
 import os
 import numpy as np
@@ -27,17 +28,17 @@ class ExportMode(str, Enum):
     OPENVINO = "openvino"
 
 
-def get_model_metadata(model: AnomalyModule) -> Dict[str, Tensor]:
+def get_model_metadata(model: AnomalyModule) -> dict[str, Tensor]:
     """Get meta data related to normalization from model.
 
     Args:
         model (AnomalyModule): Anomaly model which contains metadata related to normalization.
 
     Returns:
-        Dict[str, Tensor]: metadata
+        dict[str, Tensor]: metadata
     """
     meta_data = {}
-    cached_meta_data: Dict[str, Union[Number, Tensor]] = {
+    cached_meta_data: dict[str, Number | Tensor] = {
         "image_threshold": model.image_threshold.cpu().value.item(),
         "pixel_threshold": model.pixel_threshold.cpu().value.item(),
     }
@@ -54,11 +55,10 @@ def get_model_metadata(model: AnomalyModule) -> Dict[str, Tensor]:
 
 def export(
     model: AnomalyModule,
-    input_size: Union[List[int], Tuple[int, int]],
+    input_size: list[int] | tuple[int, int],
     export_mode: ExportMode,
-    export_root: Union[str, Path],
-    export_dir: str = "optimization"
-):
+    export_root: str | Path,
+) -> None:
     """Export the model to onnx format and (optionally) convert to OpenVINO IR if export mode is set to OpenVINO.
 
     Metadata.json is generated regardless of export mode.
@@ -75,15 +75,16 @@ def export(
 
     Args:
         model (AnomalyModule): Model to convert.
-        input_size (Union[List[int], Tuple[int, int]]): Image size used as the input for onnx converter.
+        input_size (list[int] | tuple[int, int]): Image size used as the input for onnx converter.
+        export_root (str | Path): Path to exported ONNX/OpenVINO IR.
         export_mode (ExportMode): Mode to export the model. ONNX or OpenVINO.
         export_root (Union[str, Path]): Path to exported ONNX/torchscirpt/OpenVINO IR.
         export_dir (str): Path to exported ONNX/torchscirpt/OpenVINO IR dir.
     """
     # Write metadata to json file. The file is written in the save directory.
-    export_path: Path = Path(str(export_root)) / export_dir
+    export_path: Path = Path(str(export_root)) / export_mode.value
     export_path.mkdir(parents=True, exist_ok=True)
-    with open(Path(export_path) / "meta_data.json", "w", encoding="utf-8") as metadata_file:
+    with (Path(export_path) / "meta_data.json").open("w", encoding="utf-8") as metadata_file:
         meta_data = get_model_metadata(model)
         # Convert metadata from torch
         for key, value in meta_data.items():
@@ -102,7 +103,7 @@ def export(
         _export_to_openvino(export_path, onnx_path)
 
 
-def _export_to_torchscript(model: AnomalyModule, input_size: Union[List[int], Tuple[int, int]], export_path: Path) -> Path:
+def _export_to_torchscript(model: AnomalyModule, input_size: list[int, tuple[int, int]], export_path: Path) -> Path:
     """Export model to torchscript.
 
     Args:
@@ -125,12 +126,12 @@ def _export_to_torchscript(model: AnomalyModule, input_size: Union[List[int], Tu
     print("export torchscript success!")
 
 
-def _export_to_onnx(model: AnomalyModule, input_size: Union[List[int], Tuple[int, int]], export_path: Path) -> Path:
+def _export_to_onnx(model: AnomalyModule, input_size: list[int] | tuple[int, int], export_path: Path) -> Path:
     """Export model to onnx.
 
     Args:
         model (AnomalyModule): Model to export.
-        input_size (Union[List[int], Tuple[int, int]]): Image size used as the input for onnx converter.
+        input_size (list[int] | tuple[int, int]): Image size used as the input for onnx converter.
         export_path (Path): Path to the root folder of the exported model.
 
     Returns:
@@ -156,11 +157,11 @@ def _export_to_onnx(model: AnomalyModule, input_size: Union[List[int], Tuple[int
     return onnx_path
 
 
-def _export_to_openvino(export_path: Union[str, Path], onnx_path: Path):
+def _export_to_openvino(export_path: str | Path, onnx_path: Path) -> None:
     """Convert onnx model to OpenVINO IR.
 
     Args:
-        export_path (Union[str, Path]): Path to the root folder of the exported model.
+        export_path (str | Path): Path to the root folder of the exported model.
         onnx_path (Path): Path to the exported onnx model.
     """
     export_path = export_path / "openvino"
