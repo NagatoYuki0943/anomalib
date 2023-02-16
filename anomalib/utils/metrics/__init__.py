@@ -142,6 +142,7 @@ def metric_collection_from_dicts(metrics: Dict[str, Dict[str, Any]], prefix: Opt
     return AnomalibMetricCollection(metrics_collection, prefix=prefix)
 
 
+# 创建 image 和 pixel metric
 def create_metric_collection(
     metrics: Union[List[str], Dict[str, Dict[str, Any]]], prefix: Optional[str]
 ) -> AnomalibMetricCollection:

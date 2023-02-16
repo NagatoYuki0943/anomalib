@@ -54,6 +54,7 @@ def train():
     datamodule = get_datamodule(config)
     model = get_model(config)
     experiment_logger = get_experiment_logger(config)
+    # 添加metrics，包含image and pixel metric,返回List[Callback]
     callbacks = get_callbacks(config)
 
     trainer = Trainer(**config.trainer, logger=experiment_logger, callbacks=callbacks)

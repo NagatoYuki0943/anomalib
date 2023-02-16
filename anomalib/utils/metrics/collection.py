@@ -5,7 +5,7 @@
 
 from torchmetrics import MetricCollection
 
-
+# 存放metric
 class AnomalibMetricCollection(MetricCollection):
     """Extends the MetricCollection class for use in the Anomalib pipeline."""
 

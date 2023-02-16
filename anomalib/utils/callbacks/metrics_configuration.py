@@ -75,6 +75,7 @@ class MetricsConfigurationCallback(Callback):
             pixel_metric_names = self.pixel_metric_names
 
         if isinstance(pl_module, AnomalyModule):
+            # 创建 image 和 pixel metric
             pl_module.image_metrics = create_metric_collection(image_metric_names, "image_")
             pl_module.pixel_metrics = create_metric_collection(pixel_metric_names, "pixel_")
 
