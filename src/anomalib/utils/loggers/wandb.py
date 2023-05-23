@@ -15,7 +15,8 @@ from pytorch_lightning.utilities import rank_zero_only
 try:
     import wandb
 except ModuleNotFoundError:
-    print("To use wandb logger install it using `pip install wandb`")
+    pass
+    # print("To use wandb logger install it using `pip install wandb`")
 
 from .base import ImageLoggerBase
 
