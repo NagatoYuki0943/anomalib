@@ -19,8 +19,8 @@ class Inference(ABC):
         # 2.openvino图片预处理
         self.openvino_preprocess = openvino_preprocess
         # 3.transform
-        self.infer_height = self.meta["transform"]["transform"]["transforms"][1]["height"] # 推理时使用的图片大小
-        self.infer_width  = self.meta["transform"]["transform"]["transforms"][1]["width"]
+        self.infer_height = self.meta["transform"]["transform"]["transforms"][0]["height"] # 推理时使用的图片大小
+        self.infer_width  = self.meta["transform"]["transform"]["transforms"][0]["width"]
         if openvino_preprocess:
             self.transform = get_transform(self.infer_height, self.infer_width, "openvino")
         else:

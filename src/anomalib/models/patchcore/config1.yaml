@@ -8,7 +8,7 @@ dataset:
   test_batch_size: 32
   num_workers: 8
   image_size: 256 # dimensions to which images are resized (mandatory)
-  center_crop: 224 # dimensions to which images are center-cropped after resizing (optional)
+  center_crop: null # dimensions to which images are center-cropped after resizing (optional)
   normalization: imagenet # data distribution to which the images will be normalized: [none, imagenet]
   transform_config:
     train: null
@@ -27,7 +27,7 @@ dataset:
 
 model:
   name: patchcore
-  backbone: resnet18
+  backbone: wide_resnet50_2
   pre_trained: true
   layers:
     - layer2

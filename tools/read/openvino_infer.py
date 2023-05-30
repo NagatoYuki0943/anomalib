@@ -142,7 +142,7 @@ class OVInference(Inference):
 
 
 if __name__ == '__main__':
-    # 注意使用非patchcore模型时报错可以查看infer中infer_height和infer_width中的[1] 都改为 [0]，具体查看注释和metadata.json文件
+    # patchcore模型训练配置文件删除了center_crop
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "../../datasets/MVTec/bottle/test/broken_large"
     model_path = "../../results/patchcore/mvtec/bottle/run/weights/openvino/model.xml"

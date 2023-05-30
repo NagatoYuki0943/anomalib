@@ -161,10 +161,11 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             sampling_ratio (float): Coreset sampling ratio
         """
         # 允许的embedding最大长度,防止onnxruntime报错,可以试着调整大小,和图片分辨率有关
-        # embedding_max_len = 8000
-        # embedding_len     = int(embedding.size(0))
-        # if embedding_len * sampling_ratio > embedding_max_len:
-        #     sampling_ratio = embedding_max_len / embedding_len
+        embedding_max_len = 15000
+        embedding_len     = int(embedding.size(0))
+        if embedding_len * sampling_ratio > embedding_max_len:
+            sampling_ratio = embedding_max_len / embedding_len
+            print(f"use sampling_ratio ={sampling_ratio}, is smaller than config")
 
         # Coreset Subsampling   torch.Size([163850, 384])           0.1
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
