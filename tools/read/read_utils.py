@@ -30,7 +30,7 @@ def load_image(image_path: str) -> np.ndarray:
 #   图片预处理
 #   支持pytorch和numpy
 #-----------------------------#
-def get_transform(height: int, width: int, mode: str = "pytorch") -> Callable:
+def get_transform(height: int, width: int, mode: str = "numpy") -> Callable:
     """图片预处理,支持pytorch和numpy
 
     Args:

@@ -125,17 +125,13 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         Returns:
             Embedding vector
         """
-
         embeddings = features[self.layers[0]]   # layer2 [B, 128, 28, 28]
         for layer in self.layers[1:]:           # layer3 [B, 256, 14, 14]
             layer_embedding = features[layer]
-            # scale_factor代替size
-            # scale_factor = [int(embeddings.shape[-2] / layer_embedding.shape[-2]), int(embeddings.shape[-1] / layer_embedding.shape[-1])]
-            # layer_embedding = F.interpolate(layer_embedding, scale_factor=scale_factor, mode="nearest")
             layer_embedding = F.interpolate(layer_embedding, size=embeddings.shape[-2:], mode="nearest")
             embeddings = torch.cat((embeddings, layer_embedding), 1)
-        # print("embeddings:", embeddings.size()) # [B, 384, 28, 28]
-        return embeddings
+
+        return embeddings                       # [B, 384, 28, 28]
 
     @staticmethod
     def reshape_embedding(embedding: Tensor) -> Tensor:
@@ -152,7 +148,6 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         """
         embedding_size = embedding.size(1)  # 384
         embedding = embedding.permute(0, 2, 3, 1).reshape(-1, embedding_size) # [B*28*28, 384]
-        # print('embedding', embedding.size())
         return embedding
 
     @torch.jit.ignore
@@ -165,17 +160,15 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             embedding (np.ndarray): Embedding tensor from the CNN
             sampling_ratio (float): Coreset sampling ratio
         """
-        # 允许的embedding最大长度,超过最大长度为20000,这样ort不会报错,20000 * 1600(在320分辨率下的dim); 20911报错,20910不会, 20911*1600*4/1024/1024=127.6306MB
-        # 8000 允许512分辨率 8000 * 64 * 64 * 4 / 1024 / 1024 = 125MB
-        embedding_max_len = 8000
-        embedding_len     = int(embedding.size(0))
-        if embedding_len * sampling_ratio > embedding_max_len:
-            sampling_ratio = embedding_max_len / embedding_len
+        # 允许的embedding最大长度,防止onnxruntime报错,可以试着调整大小,和图片分辨率有关
+        # embedding_max_len = 8000
+        # embedding_len     = int(embedding.size(0))
+        # if embedding_len * sampling_ratio > embedding_max_len:
+        #     sampling_ratio = embedding_max_len / embedding_len
 
         # Coreset Subsampling   torch.Size([163850, 384])           0.1
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
         coreset = sampler.sample_coreset()  # torch.Size([16385, 384])  下采样到0.1倍
-        # 将下采样1/10的数据存储起来，放到menory_bank中
         self.memory_bank = coreset
 
     def nearest_neighbors(self, embedding: Tensor, n_neighbors: int) -> tuple[Tensor, Tensor]:
@@ -190,7 +183,8 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             Tensor: Locations of the nearest neighbor(s).
         """
         print(embedding.size(), self.memory_bank.size())         # [784, 384] [16385, 384]
-        distances = fast_cdist(embedding, self.memory_bank)  # euclidean norm
+        # distances = torch.cdist(embedding, self.memory_bank, p=2.0)
+        distances = fast_cdist(embedding, self.memory_bank)
         if n_neighbors == 1:
             # when n_neighbors is 1, speed up computation by using min instead of topk
             patch_scores, locations = distances.min(1)
@@ -215,26 +209,18 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         batch_size, num_patches = patch_scores.shape
         # 1. Find the patch with the largest distance to it's nearest neighbor in each image
         max_patches = torch.argmax(patch_scores, dim=1)  # indices of m^test,* in the paper
-        # print(max_patches.size())                           # [b]
         # m^test,* in the paper
         max_patches_features = embedding.reshape(batch_size, num_patches, -1)[torch.arange(batch_size), max_patches]
         # 2. Find the distance of the patch to it's nearest neighbor, and the location of the nn in the membank
         score = patch_scores[torch.arange(batch_size), max_patches]  # s^* in the paper
-        # print(score.size())                                 # [b]
         nn_index = locations[torch.arange(batch_size), max_patches]  # indices of m^* in the paper
-        # print(nn_index.size())                              # [b]
         # 3. Find the support samples of the nearest neighbor in the membank
         nn_sample = self.memory_bank[nn_index, :]  # m^* in the paper
-        # print(nn_sample.size())                             # [b, 384]
         # indices of N_b(m^*) in the paper
         _, support_samples = self.nearest_neighbors(nn_sample, n_neighbors=self.num_neighbors)
         # 4. Find the distance of the patch features to each of the support samples
-        # print(embedding[max_patches].size())                # [b, 384]
-        # print(embedding[max_patches].unsqueeze(1).size())   # [b, 1, 384]   **
-        # print(support_samples.size())                       # [b, 9]
-        # print(self.memory_bank[support_samples].size())     # [b, 9, 384]   **
-        distances = torch.cdist(max_patches_features.unsqueeze(1), self.memory_bank[support_samples], p=2.0)
-        # print(distances.size())                             # [b, 1, 9]     **
+        # distances = torch.cdist(max_patches_features.unsqueeze(1), self.memory_bank[support_samples], p=2.0)
+        distances = fast_cdist(max_patches_features.unsqueeze(1), self.memory_bank[support_samples])
         # 5. Apply softmax to find the weights
         weights = (1 - F.softmax(distances.squeeze(1), 1))[..., 0]
         # 6. Apply the weight factor to the score
