@@ -12,7 +12,6 @@ from omegaconf import DictConfig
 from matplotlib import pyplot as plt
 from skimage import morphology
 from skimage.segmentation import find_boundaries
-from skimage.morphology import dilation
 import os
 
 
@@ -386,7 +385,7 @@ def gen_mask_border(mask: np.ndarray, image: np.ndarray) -> np.ndarray:
         np.ndarray: 原图上画上边缘
     """
     boundaries   = find_boundaries(mask)    # find_boundaries和dilation 返回和原图一样的 0 1 的图像(True False也可以)
-    outlines     = dilation(boundaries, np.ones((3, 3)))
+    outlines     = morphology.dilation(boundaries, np.ones((3, 3)))
     mask_outline = image.copy()             # 深拷贝
     mask_outline[outlines] = [255, 0, 0]
     return mask_outline
