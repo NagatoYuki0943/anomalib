@@ -165,7 +165,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
         embedding_len     = int(embedding.size(0))
         if embedding_len * sampling_ratio > embedding_max_len:
             sampling_ratio = embedding_max_len / embedding_len
-            print(f"use sampling_ratio ={sampling_ratio}, is smaller than config")
+            print(f"embedding_max_len = {embedding_max_len}, use sampling_ratio = {sampling_ratio}, smaller than config")
 
         # Coreset Subsampling   torch.Size([163850, 384])           0.1
         sampler = KCenterGreedy(embedding=embedding, sampling_ratio=sampling_ratio)
