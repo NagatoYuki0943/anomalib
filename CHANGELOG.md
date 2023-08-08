@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- Add default values to algorithms, based on the original papers.
+- Enable training with only normal images for MVTecv in https://github.com/openvinotoolkit/anomalib/pull/1241
 - Improve default settings of EfficientAD
 
 ### Deprecated
