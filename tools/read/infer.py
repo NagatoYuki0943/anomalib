@@ -7,24 +7,26 @@ from statistics import mean
 
 
 class Inference(ABC):
-    def __init__(self, meta_path: str, openvino_preprocess: bool = False) -> None:
+    def __init__(self, meta_path: str, openvino_preprocess: bool = False, efficient_ad: bool = False) -> None:
         """
         Args:
             meta_path (str):            超参数路径
             openvino_preprocess (bool): 是否使用openvino图片预处理,只有openvino模型使用
+            efficient_ad (bool): 是否使用efficient_ad模型
         """
         super().__init__()
         # 1.超参数
         self.meta  = get_json(meta_path)
         # 2.openvino图片预处理
         self.openvino_preprocess = openvino_preprocess
+        self.efficient_ad = efficient_ad
         # 3.transform
         self.infer_height = self.meta["transform"]["transform"]["transforms"][0]["height"] # 推理时使用的图片大小
         self.infer_width  = self.meta["transform"]["transform"]["transforms"][0]["width"]
         if openvino_preprocess:
-            self.transform = get_transform(self.infer_height, self.infer_width, "openvino")
+            self.transform = get_transform(self.infer_height, self.infer_width, self.efficient_ad, "openvino")
         else:
-            self.transform = get_transform(self.infer_height, self.infer_width, "numpy")
+            self.transform = get_transform(self.infer_height, self.infer_width, self.efficient_ad, "numpy")
 
     @abstractmethod
     def infer(self, image: np.ndarray) -> tuple[np.ndarray]:

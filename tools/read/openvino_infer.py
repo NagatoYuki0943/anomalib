@@ -1,16 +1,9 @@
-import os
 import openvino.runtime as ov
 from openvino.preprocess import PrePostProcessor
 from openvino.preprocess import ColorFormat
 from openvino.runtime import Layout, Type
 import numpy as np
-import cv2
-import time
-import os
-from statistics import mean
-
 from infer import Inference
-from read_utils import load_image, get_transform, get_json, post_process, gen_images, save_image, draw_score
 
 
 """openvino图片预处理方法
@@ -67,8 +60,12 @@ class OVInference(Inference):
             CompileModel: 编译好的模型
         """
         # 这里乘以255相当于归一化和标准化同时计算
-        mean = np.array((0.485, 0.456, 0.406)) * 255
-        std  = np.array((0.229, 0.224, 0.225)) * 255
+        if not self.efficient_ad:
+            mean = np.array((0.485, 0.456, 0.406)) * 255
+            std  = np.array((0.229, 0.224, 0.225)) * 255
+        else:
+            mean = np.array((0., 0., 0.))
+            std  = np.array((255., 255., 255.))
 
         # Step 1. Initialize OpenVINO Runtime core
         core = ov.Core()
@@ -127,8 +124,8 @@ class OVInference(Inference):
         results = self.model([image])
 
         # 2.解决不同模型输出问题 得到热力图和概率
-        if len(self.outputs) == 1:
-            # 大多数模型只返回热力图
+        if len(self.outputs) != 2:
+            # 大多数模型只返回热力图,efficient_ad有3个输出,不过也只需要第1个输出
             # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
             anomaly_map = results[self.outputs[0]]          # [1, 1, 256, 256] 返回类型为 np.ndarray
             pred_score  = anomaly_map.reshape(-1).max()     # [1]
@@ -143,12 +140,13 @@ class OVInference(Inference):
 
 if __name__ == '__main__':
     # patchcore模型训练配置文件删除了center_crop
+    model_path = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/model.xml"
+    meta_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/metadata.json"
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "../../datasets/MVTec/bottle/test/broken_large"
-    model_path = "../../results/patchcore/mvtec/bottle/run/weights/openvino/model.xml"
-    meta_path  = "../../results/patchcore/mvtec/bottle/run/weights/openvino/metadata.json"
-    save_path  = "../../results/patchcore/mvtec/bottle/run/weights/openvino/result.jpg"
-    save_dir   = "../../results/patchcore/mvtec/bottle/run/weights/openvino/result"
-    infer = OVInference(model_path=model_path, meta_path=meta_path, mode="CPU", openvino_preprocess=True)
+    save_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/result.jpg"
+    save_dir   = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/result"
+    efficient_ad = True
+    infer = OVInference(model_path=model_path, meta_path=meta_path, mode="CPU", openvino_preprocess=True, efficient_ad=efficient_ad)
     infer.single(image_path=image_path, save_path=save_path)
     # infer.multi(image_dir=image_dir, save_dir=save_dir)

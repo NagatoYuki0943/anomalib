@@ -1,9 +1,6 @@
 import tensorrt as trt
 import pycuda.driver as cuda
 import pycuda.autoinit # 初始化cuda
-import time
-import os
-from statistics import mean
 import numpy as np
 from infer import Inference
 from read_utils import *
@@ -125,28 +122,33 @@ class TrtInference(Inference):
         cuda.memcpy_htod(self.inputs[0]["allocation"], np.ascontiguousarray(image))             # cpu memory to gpu memory
         self.context.execute_v2(self.allocations)
 
+        for i in range(len(self.outputs)):
+            cuda.memcpy_dtoh(self.outputs[i]["host_allocation"], self.outputs[i]["allocation"]) # gpu memory to cpu memory
+
         if len(self.outputs) == 1:
-            cuda.memcpy_dtoh(self.outputs[0]["host_allocation"], self.outputs[0]["allocation"]) # gpu memory to cpu memory
             anomaly_map = np.reshape(self.outputs[0]["host_allocation"], (1, 1, self.infer_height, self.infer_width))
             pred_score  = anomaly_map.reshape(-1).max() # [1]
-        else:
+        elif len(self.outputs) == 2:
             # patchcore有两个输出结果 [1]代表anomaly_map [0]代表pred_score
-            cuda.memcpy_dtoh(self.outputs[1]["host_allocation"], self.outputs[1]["allocation"]) # gpu memory to cpu memory
             anomaly_map = self.outputs[1]["host_allocation"]
-            cuda.memcpy_dtoh(self.outputs[0]["host_allocation"], self.outputs[0]["allocation"])
             pred_score = self.outputs[0]["host_allocation"]
+        elif len(self.outputs) == 3:
+            # efficient_ad有3个输出结果, [2]才是anomaly_map
+            anomaly_map = np.reshape(self.outputs[2]["host_allocation"], (1, 1, self.infer_height, self.infer_width))
+            pred_score  = anomaly_map.reshape(-1).max() # [1]
 
         return anomaly_map, pred_score
 
 
 if __name__ == "__main__":
     # patchcore模型训练配置文件删除了center_crop
+    model_path = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/model.engine"
+    meta_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/metadata.json"
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "../../datasets/MVTec/bottle/test/broken_large"
-    model_path = "../../results/patchcore/mvtec/bottle/run/weights/openvino/model.engine"
-    meta_path  = "../../results/patchcore/mvtec/bottle/run/weights/openvino/metadata.json"
-    save_path  = "../../results/patchcore/mvtec/bottle/run/weights/openvino/result.jpg"
-    save_dir   = "../../results/patchcore/mvtec/bottle/run/weights/openvino/result"
-    infer = TrtInference(model_path=model_path, meta_path=meta_path)
+    save_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/result.jpg"
+    save_dir   = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/result"
+    efficient_ad = True
+    infer = TrtInference(model_path=model_path, meta_path=meta_path, efficient_ad=efficient_ad)
     infer.single(image_path=image_path, save_path=save_path)
     # infer.multi(image_dir=image_dir, save_dir=save_dir)

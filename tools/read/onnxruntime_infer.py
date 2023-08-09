@@ -1,8 +1,6 @@
 import onnxruntime as ort
 import numpy as np
 from infer import Inference
-from read_utils import get_transform, post_process
-
 
 print(ort.__version__)
 # print("onnxruntime all providers:", ort.get_all_providers())
@@ -92,8 +90,8 @@ class OrtInference(Inference):
         predictions = self.model.run(None, {self.inputs[0].name: image})    # 返回值为list
 
         # 2.解决不同模型输出问题
-        if len(predictions) == 1:
-            # 大多数模型只返回热力图
+        if len(predictions) != 2:
+            # 大多数模型只返回热力图,efficient_ad有3个输出,不过也只需要第1个输出
             # https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/deploy/inferencers/torch_inferencer.py#L159
             anomaly_map = predictions[0]                # [1, 1, 256, 256] 返回类型为 np.ndarray
             pred_score  = anomaly_map.reshape(-1).max() # [1]
@@ -107,12 +105,13 @@ class OrtInference(Inference):
 
 if __name__ == "__main__":
     # patchcore模型训练配置文件删除了center_crop
+    model_path = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/model.onnx"
+    meta_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/metadata.json"
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "../../datasets/MVTec/bottle/test/broken_large"
-    model_path = "../../results/patchcore/mvtec/bottle/run/weights/openvino/model.onnx"
-    meta_path  = "../../results/patchcore/mvtec/bottle/run/weights/openvino/metadata.json"
-    save_path  = "../../results/patchcore/mvtec/bottle/run/weights/openvino/result.jpg"
-    save_dir   = "../../results/patchcore/mvtec/bottle/run/weights/openvino/result"
-    infer = OrtInference(model_path=model_path, meta_path=meta_path, mode="cuda")
+    save_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/result.jpg"
+    save_dir   = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/result"
+    efficient_ad = True
+    infer = OrtInference(model_path=model_path, meta_path=meta_path, mode="cuda", efficient_ad=efficient_ad)
     infer.single(image_path=image_path, save_path=save_path)
     # infer.multi(image_dir=image_dir, save_dir=save_dir)
