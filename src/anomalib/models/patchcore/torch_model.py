@@ -160,7 +160,7 @@ class PatchcoreModel(DynamicBufferModule, nn.Module):
             embedding (np.ndarray): Embedding tensor from the CNN
             sampling_ratio (float): Coreset sampling ratio
         """
-        # 允许的embedding最大长度,防止onnxruntime报错,可以试着调整大小,和图片分辨率有关
+        # The maximum allowed embedding length to prevent onnxruntime errors, you can try adjusting the embedding_max_len depending on the image resolution
         embedding_max_len = 15000
         embedding_len     = int(embedding.size(0))
         if embedding_len * sampling_ratio > embedding_max_len:
