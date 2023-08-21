@@ -42,22 +42,37 @@ class TrtInference(Inference):
         self.allocations = []   # inputs&outputs cuda memorys
         for i in range(self.engine.num_bindings):
             is_input = False
+
             if trt.__version__ < "8.5":
                 if self.engine.binding_is_input(i):
                     is_input = True
                 name = self.engine.get_binding_name(i)
                 dtype = self.engine.get_binding_dtype(i)
-                shape = self.engine.get_binding_shape(i)
+                shape = self.context.get_binding_shape(i)
+                if shape[0] < 0 and is_input:
+                    assert self.engine.num_optimization_profiles > 0
+                    profile_shape = self.engine.get_profile_shape(0, name)
+                    assert len(profile_shape) == 3  # min,opt,max
+                    # Set the *min* profile as binding shape
+                    self.context.set_binding_shape(i, profile_shape[0])
+                    shape = self.context.get_binding_shape(i)
             else:
-                # 8.5 api
                 name = self.engine.get_tensor_name(i)
                 if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
                     is_input = True
                 dtype = self.engine.get_tensor_dtype(name)
-                shape = self.engine.get_tensor_shape(name) # both engine and context have this func and the returns are same.
+                shape = self.context.get_tensor_shape(name)
+                if shape[0] < 0 and is_input:
+                    assert self.engine.num_optimization_profiles > 0
+                    profile_shape = self.engine.get_tensor_profile_shape(name, 0)
+                    assert len(profile_shape) == 3  # min,opt,max
+                    # Set the *min* profile as tensor shape
+                    self.context.set_input_shape(name, profile_shape[0])
+                    shape = self.context.get_tensor_shape(name)
 
             if is_input:
                 self.batch_size = shape[0]
+
             dtype = np.dtype(trt.nptype(dtype))
             size = dtype.itemsize
             for s in shape:
@@ -79,7 +94,7 @@ class TrtInference(Inference):
                 self.outputs.append(binding)
 
             print("{} '{}' with shape {} and dtype {}".format(
-                "Input" if is_input else "Output",
+                "Input:" if is_input else "Output:",
                 binding['name'], binding['shape'], binding['dtype']))
 
         assert self.batch_size > 0
@@ -143,6 +158,7 @@ class TrtInference(Inference):
 if __name__ == "__main__":
     # patchcore模型训练配置文件删除了center_crop
     # trtexec --onnx=model.onnx --saveEngine=model.engine
+    # trtexec --onnx=model_dynamic_batch.onnx --saveEngine=model_dynamic_batch.engine --minShapes=input:1x3x256x256 --optShapes=input:4x3x256x256 --maxShapes=input:8x3x256x256
     model_path = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/model.engine"
     meta_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/metadata.json"
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"

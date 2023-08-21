@@ -26,11 +26,11 @@ class OrtInference(Inference):
         self.outputs = self.model.get_outputs()
         print("=" * 100)
         print("inputs:")
-        print(self.inputs[0])             # NodeArg(name='images', type='tensor(float)', shape=[1, 3, 640, 640])
+        print("\t", self.inputs[0]) # NodeArg(name='images', type='tensor(float)', shape=[1, 3, 640, 640])
 
         print("\noutputs:")
         for output in self.outputs:
-            print(output)            # NodeArg(name='output', type='tensor(float)', shape=[1, 25200, 85])
+            print("\t", output)     # NodeArg(name='output', type='tensor(float)', shape=[1, 25200, 85])
             print()
         print("=" * 100)
         # 3.预热模型
