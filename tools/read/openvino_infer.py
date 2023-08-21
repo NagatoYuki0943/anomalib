@@ -45,6 +45,15 @@ class OVInference(Inference):
         # 2.保存模型输入输出
         self.inputs  = self.model.inputs
         self.outputs = self.model.outputs
+        print("=" * 100)
+        print("inputs:")
+        print("\t", self.inputs[0])
+
+        print("\noutputs:")
+        for output in self.outputs:
+            print("\t", output)
+            print()
+        print("=" * 100)
         # 3.预热模型
         self.warm_up()
 
