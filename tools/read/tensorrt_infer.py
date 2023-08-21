@@ -158,7 +158,8 @@ class TrtInference(Inference):
 if __name__ == "__main__":
     # patchcore模型训练配置文件删除了center_crop
     # trtexec --onnx=model.onnx --saveEngine=model.engine
-    # trtexec --onnx=model_dynamic_batch.onnx --saveEngine=model_dynamic_batch.engine --minShapes=input:1x3x256x256 --optShapes=input:4x3x256x256 --maxShapes=input:8x3x256x256
+    # dynamic batch, require onnx model has dynamic batch
+    # trtexec --onnx=model.onnx --saveEngine=model.engine --minShapes=input:1x3x256x256 --optShapes=input:4x3x256x256 --maxShapes=input:8x3x256x256
     model_path = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/model.engine"
     meta_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/metadata.json"
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"
