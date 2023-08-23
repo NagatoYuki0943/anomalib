@@ -113,7 +113,7 @@ class OrtInference(Inference):
 
 
 if __name__ == "__main__":
-    # patchcore模型训练配置文件删除了center_crop
+    # patchcore模型训练配置文件调整center_crop为 `center_crop: null`
     model_path = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/model.onnx"
     meta_path  = "../../results/efficient_ad/mvtec/bottle/run/weights/openvino/metadata.json"
     image_path = "../../datasets/MVTec/bottle/test/broken_large/000.png"

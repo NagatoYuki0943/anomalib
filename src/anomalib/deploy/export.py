@@ -161,7 +161,7 @@ def export_to_onnx(model: AnomalyModule, input_size: tuple[int, int], export_pat
         opset_version=11,
         input_names=["input"],
         output_names=["output"],
-        dynamic_axes={"input": {0: "batch_size"}}, # dynamic batch
+        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}}, # dynamic batch
     )
 
     return onnx_path
