@@ -351,12 +351,33 @@ class EfficientAdModel(nn.Module):
             return {"anomaly_map_combined": map_combined, "map_st": map_st, "map_ae": map_stae}
 
 
-if __name__ == "__main__":
+def summary(model: nn.Module, input_shape: tuple = (3, 256, 256)):
     from torchsummary import summary
-    model = PDN_S(out_channels=384)
-    input_shape = (3, 256, 256)
     summary(model, input_shape, device="cpu")
 
+
+def test_model_speed(model: nn.Module, input: Tensor, device="cuda:0", eval=False, repeats: int = 1000):
+    from tqdm import tqdm
+    import time
+    model.to(device)
+    input = input.to(device)
+    if eval:
+        model.eval()
+    times = []
+    for _ in tqdm(range(repeats)):
+        if "cuda" in device:
+            torch.cuda.synchronize()
+        start = time.time()
+        model(input)
+        if "cuda" in device:
+            torch.cuda.synchronize()
+        times.append(time.time() - start)
+    return sum(times) / repeats
+
+
+if __name__ == "__main__":
+    model = PDN_S(out_channels=384)
+    summary(model, (3, 256, 256))
     ## (3, 256, 256)
     # ================================================================
     # Total params: 2,694,144
@@ -380,3 +401,12 @@ if __name__ == "__main__":
     # Params size (MB): 10.28
     # Estimated Total Size (MB): 3481.84
     # ----------------------------------------------------------------
+
+    input = torch.ones(1, 3, 256, 256)
+    print(model(input).shape)   # [1, 384, 56, 56]
+    avg_time = test_model_speed(model, input, eval=True)
+    print(avg_time, "second")
+    # 256:  0.005538764715194702 second
+    # 512:  0.01852963399887085 second
+    # 1024: 0.08025343465805054 second
+    # 1280: 0.12569849371910094 second
