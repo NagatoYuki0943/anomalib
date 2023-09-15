@@ -349,3 +349,34 @@ class EfficientAdModel(nn.Module):
 
             map_combined = 0.5 * map_st + 0.5 * map_stae
             return {"anomaly_map_combined": map_combined, "map_st": map_st, "map_ae": map_stae}
+
+
+if __name__ == "__main__":
+    from torchsummary import summary
+    model = PDN_S(out_channels=384)
+    input_shape = (3, 256, 256)
+    summary(model, input_shape, device="cpu")
+
+    ## (3, 256, 256)
+    # ================================================================
+    # Total params: 2,694,144
+    # Trainable params: 2,694,144
+    # Non-trainable params: 0
+    # ----------------------------------------------------------------
+    # Input size (MB): 0.75
+    # Forward/backward pass size (MB): 130.82
+    # Params size (MB): 10.28
+    # Estimated Total Size (MB): 141.84
+    # ----------------------------------------------------------------
+
+    ## (3, 1280, 1280)
+    # ================================================================
+    # Total params: 2,694,144
+    # Trainable params: 2,694,144
+    # Non-trainable params: 0
+    # ----------------------------------------------------------------
+    # Input size (MB): 18.75
+    # Forward/backward pass size (MB): 3452.82
+    # Params size (MB): 10.28
+    # Estimated Total Size (MB): 3481.84
+    # ----------------------------------------------------------------
