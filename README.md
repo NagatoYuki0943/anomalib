@@ -15,7 +15,6 @@
 [![pytorch](https://img.shields.io/badge/pytorch-1.8.1%2B-orange)]()
 [![openvino](https://img.shields.io/badge/openvino-2022.3.0-purple)]()
 [![comet](https://custom-icon-badges.herokuapp.com/badge/comet__ml-3.31.7-orange?logo=logo_comet_ml)](https://www.comet.com/site/products/ml-experiment-tracking/?utm_source=anomalib&utm_medium=referral)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/684927c1c76c4c5e94bb53480812fbbb)](https://www.codacy.com/gh/openvinotoolkit/anomalib/dashboard?utm_source=github.com&utm_medium=referral&utm_content=openvinotoolkit/anomalib&utm_campaign=Badge_Grade)
 [![black](https://img.shields.io/badge/code%20style-black-000000.svg)]()
 [![Pre-Merge Checks](https://github.com/openvinotoolkit/anomalib/actions/workflows/pre_merge.yml/badge.svg)](https://github.com/openvinotoolkit/anomalib/actions/workflows/pre_merge.yml)
 [![codecov](https://codecov.io/gh/openvinotoolkit/anomalib/branch/main/graph/badge.svg?token=Z6A07N1BZK)](https://codecov.io/gh/openvinotoolkit/anomalib)
@@ -23,6 +22,26 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/anomalib?period=total&units=international_system&left_color=grey&right_color=green&left_text=PyPI%20Downloads)](https://pepy.tech/project/anomalib)
 
 </div>
+
+---
+
+# 🌟 Upcoming Release: Anomalib v1 🌟
+
+We're excited to announce that Anomalib v1 is on the horizon! This major release packs new features, enhancements, and performance improvements.
+
+Get a sneak peek of Anomalib v1:
+
+- ⚙️ **Installation**: Until it is released, you can install it via:
+
+  ```bash
+  git command git clone -b v1 git@github.com:openvinotoolkit/anomalib.git
+  cd anomalib
+  pip install -e .
+  ```
+
+- 📘 **Documentation**: Discover the latest additions and enhancements [here](https://anomalib.readthedocs.io/en/v1/).
+- 🧪 **Early Testing**: Help us refine the final release by testing pre-release features and report issues [here](https://github.com/openvinotoolkit/anomalib/issues).
+- 👩‍💻 **Contribute**: Your input is invaluable - Help us make anomalib v1.x even better. Read more about the contribution guidelines [here](https://github.com/openvinotoolkit/anomalib/blob/main/CONTRIBUTING.md)
 
 ---
 
@@ -114,6 +133,7 @@ where the currently available models are:
 - [PatchCore](src/anomalib/models/patchcore)
 - [Reverse Distillation](src/anomalib/models/reverse_distillation)
 - [STFPM](src/anomalib/models/stfpm)
+- [UFlow](src/anomalib/models/uflow)
 
 ## Feature extraction & (pre-trained) backbones
 
@@ -153,7 +173,7 @@ dataset:
   normal_test_dir: null # name of the folder containing normal test images.
   task: segmentation # classification or segmentation
   mask: <path/to/mask/annotations> #optional
-  extensions: null
+  extensions: null # .ext or [.ext1, .ext2, ...]
   split_ratio: 0.2 # ratio of the normal images that will be used to create a test split
   image_size: 256
   train_batch_size: 32
