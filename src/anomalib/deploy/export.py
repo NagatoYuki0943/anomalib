@@ -254,7 +254,7 @@ def _serialize_list(arr: list[int] | list[float] | tuple[int, int]) -> str:
     return " ".join(map(str, arr))
 
 
-def export_to_torchscript(model: AnomalyModule, input_size: tuple[int, int], export_path: Path) -> tuple(Path):
+def export_to_torchscript(model: nn.Module, input_size: tuple[int, int], export_path: Path) -> Path:
     """Export model to torchscript.
 
     Args:
@@ -267,11 +267,8 @@ def export_to_torchscript(model: AnomalyModule, input_size: tuple[int, int], exp
     """
     temp_model = deepcopy(model)
 
-    cpu_path = export_path / "model-cpu.torchscript"
-    torch.jit.trace(temp_model.model.cpu(), torch.randn(1, 3, *input_size)).save(cpu_path)
-    gpu_path = ""
-    if torch.cuda.is_available():
-        gpu_path = export_path / "model-gpu.torchscript"
-        torch.jit.trace(temp_model.model.cuda(), torch.randn(1, 3, *input_size).cuda()).save(gpu_path)
+    script_path = export_path / "model.torchscript"
+    # export cpu model, torchscript model also support `to(device) cpu() cuda()` function
+    torch.jit.trace(temp_model.model.cpu(), torch.randn(1, 3, *input_size)).save(script_path)
 
-    return cpu_path, gpu_path
+    return script_path
