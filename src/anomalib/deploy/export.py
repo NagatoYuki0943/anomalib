@@ -13,6 +13,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 from warnings import warn
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -125,6 +126,8 @@ def export(
         if export_mode == ExportMode.OPENVINO:
             export_to_openvino(export_path, onnx_path, metadata, input_size)
 
+        # export to torchscript
+        export_to_torchscript(model, input_size, export_path)
     else:
         raise ValueError(f"Unknown export mode {export_mode}")
 
@@ -249,3 +252,26 @@ def _serialize_list(arr: list[int] | list[float] | tuple[int, int]) -> str:
         str: Serialized list.
     """
     return " ".join(map(str, arr))
+
+
+def export_to_torchscript(model: AnomalyModule, input_size: tuple[int, int], export_path: Path) -> tuple(Path):
+    """Export model to torchscript.
+
+    Args:
+        model (AnomalyModule): Model to export.
+        input_size (list[int] | tuple[int, int]): Image size used as the input for onnx converter.
+        export_path (Path): Path to the root folder of the exported model.
+
+    Returns:
+        Path: Path to the exported torchscript model.
+    """
+    temp_model = deepcopy(model)
+
+    cpu_path = export_path / "model-cpu.torchscript"
+    torch.jit.trace(temp_model.model.cpu(), torch.randn(1, 3, *input_size)).save(cpu_path)
+    gpu_path = ""
+    if torch.cuda.is_available():
+        gpu_path = export_path / "model-gpu.torchscript"
+        torch.jit.trace(temp_model.model.cuda(), torch.randn(1, 3, *input_size).cuda()).save(gpu_path)
+
+    return cpu_path, gpu_path
