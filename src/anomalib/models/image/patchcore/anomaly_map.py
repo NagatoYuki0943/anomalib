@@ -24,7 +24,7 @@ class AnomalyMapGenerator(nn.Module):
 
     def __init__(
         self,
-        input_size: ListConfig | tuple,
+        input_size: ListConfig | tuple, # [224, 224]
         sigma: int = 4,
     ) -> None:
         super().__init__()
@@ -33,14 +33,18 @@ class AnomalyMapGenerator(nn.Module):
         self.blur = GaussianBlur2d(kernel_size=(kernel_size, kernel_size), sigma=(sigma, sigma), channels=1)
 
     def compute_anomaly_map(self, patch_scores: torch.Tensor) -> torch.Tensor:
-        """Pixel Level Anomaly Heatmap.
+        """ 取topk的每个像素最小值([:,0]),上采样到原图尺寸使用高斯模糊绘制热力图
+            Pixel Level Anomaly Heatmap.
 
         Args:
-            patch_scores (torch.Tensor): Patch-level anomaly scores
+            patch_scores (torch.Tensor): Patch-level anomaly scores                 [28*28, 9]
 
         Returns:
             Tensor: Map of the pixel-level anomaly scores
         """
+        # scale_factor代替size
+        # scale_factor = [int(self.input_size[0] / patch_scores.shape[-2]), int(self.input_size[1] / patch_scores.shape[-1])]
+        # anomaly_map = F.interpolate(patch_scores, scale_factor=scale_factor)
         anomaly_map = F.interpolate(patch_scores, size=(self.input_size[0], self.input_size[1]))
         return self.blur(anomaly_map)
 
